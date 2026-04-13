@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/aiButton"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
+    android:background="@drawable/bg_ai_button"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:elevation="100dp"
+    android:translationZ="100dp"
+    android:visibility="visible"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_ai_stars"
+        app:tint="@android:color/white"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ask"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"/>
+</LinearLayout>

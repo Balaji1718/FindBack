@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="?attr/colorSurface"
+    app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:background="#D1D1D1" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Appearance"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorOnSurface"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose how FindBack looks to you"
+        android:textSize="14sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:layout_marginBottom="24dp"/>
+
+    <RadioGroup
+        android:id="@+id/themeGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:divider="?android:attr/dividerHorizontal"
+        android:showDividers="middle">
+
+        <RadioButton
+            android:id="@+id/lightMode"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="Light Mode"
+            android:textSize="16sp"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:textColor="?attr/colorOnSurface"/>
+
+        <RadioButton
+            android:id="@+id/darkMode"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="Dark Mode"
+            android:textSize="16sp"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:textColor="?attr/colorOnSurface"/>
+
+        <RadioButton
+            android:id="@+id/systemMode"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="Follow System"
+            android:textSize="16sp"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:textColor="?attr/colorOnSurface"/>
+
+    </RadioGroup>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnApplyTheme"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="24dp"
+        android:text="Apply Changes"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        app:cornerRadius="12dp" />
+
+</LinearLayout>

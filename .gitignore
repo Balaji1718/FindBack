@@ -1,0 +1,51 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp
+tmp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# Native build
+.externalNativeBuild
+.cxx
+
+# Signing keys
+*.jks
+*.keystore
+*.p12
+
+# Generated
+*.apk
+*.aar
+*.ap_
+*.dex
+*.class
+
+# Env
+.env
+
+# Firebase/Google Services
+google-services.json
+google_services_key.json

@@ -1,0 +1,33 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.Findback" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/purple_200</item>
+        <item name="colorOnPrimary">@color/black</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorOnSecondary">@color/black</item>
+
+        <!-- Surface & Background colors for Dark Mode -->
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
+
+        <!-- Navigation icon color -->
+        <item name="homeAsUpIndicator">@drawable/ic_back_white</item>
+
+        <!-- Enable auto dark/light -->
+        <item name="android:forceDarkAllowed" tools:targetApi="q">true</item>
+    </style>
+
+    <style name="Theme.Findback.NoActionBar" parent="Theme.Findback">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <!-- Toolbar Style to ensure visibility in dark mode -->
+    <style name="AppToolbarTheme" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">@android:color/white</item>
+        <item name="colorControlNormal">@android:color/white</item>
+    </style>
+</resources>

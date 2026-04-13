@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <!-- Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="?android:attr/windowBackground"
+        app:menu="@menu/bottom_menu" />
+
+    <!-- Main Content -->
+    <LinearLayout
+        android:id="@+id/contentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/toolbar"
+        android:layout_above="@id/bottomNavigation"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Welcome Username -->
+        <TextView
+            android:id="@+id/welcomeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="4dp"/>
+
+        <!-- Institution -->
+        <TextView
+            android:id="@+id/institutionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Institution:"
+            android:textSize="16sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- OTHERS / MINE TABS -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            <Button
+                android:id="@+id/btnOthers"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Others"
+                android:layout_marginEnd="4dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+            <Button
+                android:id="@+id/btnMine"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mine"
+                android:layout_marginStart="4dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        </LinearLayout>
+
+        <!-- Search Bar -->
+        <SearchView
+            android:id="@+id/searchView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:queryHint="Search items..."
+            android:layout_marginBottom="8dp"
+            android:iconifiedByDefault="false"
+            android:background="?attr/colorSurfaceVariant"
+            android:queryBackground="@android:color/transparent"/>
+
+        <!-- FILTER SYSTEM -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginBottom="8dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="10dp"
+                android:paddingEnd="10dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <Button
+                    android:id="@+id/filterAll"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All"
+                    android:layout_marginEnd="12dp"/>
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
+                    <Button
+                        android:id="@+id/filterLost"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lost"/>
+                    <ImageView
+                        android:id="@+id/ivCheckLost"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:elevation="25dp"
+                        android:src="@drawable/ic_check_bordered"
+                        android:visibility="gone"
+                        android:translationX="4dp"
+                        android:translationY="-4dp" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
+                    <Button
+                        android:id="@+id/filterFound"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Found"/>
+                    <ImageView
+                        android:id="@+id/ivCheckFound"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:elevation="25dp"
+                        android:src="@drawable/ic_check_bordered"
+                        android:visibility="gone"
+                        android:translationX="4dp"
+                        android:translationY="-4dp" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
+                    <Button
+                        android:id="@+id/filterClaimed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Claimed"/>
+                    <ImageView
+                        android:id="@+id/ivCheckClaimed"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:elevation="25dp"
+                        android:src="@drawable/ic_check_bordered"
+                        android:visibility="gone"
+                        android:translationX="4dp"
+                        android:translationY="-4dp" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
+                    <Button
+                        android:id="@+id/filterReturned"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Returned"/>
+                    <ImageView
+                        android:id="@+id/ivCheckReturned"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:elevation="25dp"
+                        android:src="@drawable/ic_check_bordered"
+                        android:visibility="gone"
+                        android:translationX="4dp"
+                        android:translationY="-4dp" />
+                </FrameLayout>
+
+            </LinearLayout>
+
+        </HorizontalScrollView>
+
+        <ProgressBar
+            android:id="@+id/loadingProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/emptyText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No lost or found items posted yet."
+            android:gravity="center"
+            android:visibility="gone"
+            android:textSize="18sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:padding="16dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewItems"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="8dp"/>
+
+    </LinearLayout>
+
+</RelativeLayout>

@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@android:color/white"
+            app:navigationIconTint="@android:color/white"/>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <TextView
+                android:id="@+id/adminText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Welcome Admin"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginBottom="24dp"/>
+
+            <!-- Total Items Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="0dp"
+                android:layout_marginBottom="24dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/colorPrimary"
+                    android:orientation="horizontal"
+                    android:padding="20dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="TOTAL ITEMS"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"/>
+
+                    <TextView
+                        android:id="@+id/tvTotalItems"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#FFFFFF"
+                        android:textSize="28sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Analytics Wheel -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="0dp"
+                android:layout_marginBottom="24dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center"
+                    android:background="?attr/colorSurfaceVariant">
+
+                    <com.balaji.findback.AnalyticsWheelView
+                        android:id="@+id/analyticsWheel"
+                        android:layout_width="240dp"
+                        android:layout_height="240dp"
+                        android:layout_marginBottom="24dp"/>
+
+                    <GridLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:columnCount="2"
+                        android:alignmentMode="alignMargins">
+
+                        <LinearLayout android:layout_columnWeight="1" android:layout_marginBottom="12dp" android:gravity="center_vertical">
+                            <View android:layout_width="12dp" android:layout_height="12dp" android:background="#E53935" android:layout_marginEnd="8dp"/>
+                            <TextView android:id="@+id/tvLost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lost: 0%" android:textSize="14sp" android:textColor="?attr/colorOnSurface"/>
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_columnWeight="1" android:layout_marginBottom="12dp" android:gravity="center_vertical">
+                            <View android:layout_width="12dp" android:layout_height="12dp" android:background="#1E88E5" android:layout_marginEnd="8dp"/>
+                            <TextView android:id="@+id/tvFound" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Found: 0%" android:textSize="14sp" android:textColor="?attr/colorOnSurface"/>
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_columnWeight="1" android:gravity="center_vertical">
+                            <View android:layout_width="12dp" android:layout_height="12dp" android:background="#FDD835" android:layout_marginEnd="8dp"/>
+                            <TextView android:id="@+id/tvClaims" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Claims: 0%" android:textSize="14sp" android:textColor="?attr/colorOnSurface"/>
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_columnWeight="1" android:gravity="center_vertical">
+                            <View android:layout_width="12dp" android:layout_height="12dp" android:background="#9E9E9E" android:layout_marginEnd="8dp"/>
+                            <TextView android:id="@+id/tvReturned" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Returned: 0%" android:textSize="14sp" android:textColor="?attr/colorOnSurface"/>
+                        </LinearLayout>
+                    </GridLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Navigation Buttons -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/viewItemsBtn"
+                style="@style/Widget.MaterialComponents.Button.Icon"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="Manage Items"
+                app:cornerRadius="12dp"
+                android:layout_marginBottom="12dp"
+                app:icon="@drawable/ic_items"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/viewClaimsBtn"
+                style="@style/Widget.MaterialComponents.Button.Icon"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="Manage Claims"
+                app:cornerRadius="12dp"
+                android:layout_marginBottom="12dp"
+                app:icon="@drawable/ic_claim"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/viewUsersBtn"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="View Users"
+                app:cornerRadius="12dp"
+                android:layout_marginBottom="12dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"/>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/viewReportsBtn"
+                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="View Reports"
+                    app:cornerRadius="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
+
+                <TextView
+                    android:id="@+id/tvReportBadge"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentTop="true"
+                    android:layout_marginTop="-6dp"
+                    android:layout_marginEnd="-6dp"
+                    android:background="@drawable/wheel_center"
+                    android:backgroundTint="#FF5252"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:elevation="12dp"
+                    android:visibility="gone"/>
+            </RelativeLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/logoutButton"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="Logout"
+                app:cornerRadius="12dp"
+                app:backgroundTint="#E53935"
+                android:textColor="@android:color/white"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:layout_marginTop="12dp"/>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

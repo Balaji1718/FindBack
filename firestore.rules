@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is an admin
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Allow users to read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow anyone to read institutions to select one for login
+    match /institutions/{institutionId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Items rules
+    match /items/{itemId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+
+      // Allow update if owner OR if updating reporting fields OR if admin
+      allow update: if request.auth != null && (
+        resource.data.postedBy == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportCount', 'flagged', 'hidden', 'status']) ||
+        isAdmin()
+      );
+
+      // Allow delete if owner OR if admin
+      allow delete: if request.auth != null && (
+        resource.data.postedBy == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // Reading and writing claims
+    match /claims/{claimId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+
+      allow update, delete: if request.auth != null && (
+        request.auth.uid == resource.data.claimerId ||
+        request.auth.uid == resource.data.ownerId ||
+        isAdmin()
+      );
+    }
+
+    // Rules for reports
+    match /reports/{reportId} {
+      // Allow read if user is involved OR if admin
+      allow read: if request.auth != null && (
+        resource.data.reportedByUserId == request.auth.uid ||
+        resource.data.itemOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+
+      // Allow create if authenticated and reporter matches auth
+      allow create: if request.auth != null && request.resource.data.reportedByUserId == request.auth.uid;
+
+      // Allow update if admin (to change status to 'reviewed')
+      allow update: if isAdmin();
+
+      // Allow delete if admin
+      allow delete: if isAdmin();
+    }
+  }
+}
