@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Edit User Information"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"
+            android:textColor="?attr/colorOnSurface"/>
+
+        <EditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Full Name"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_search_bar"/>
+
+        <EditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Email"
+            android:inputType="textEmailAddress"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_search_bar"/>
+
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Password (Leave blank if no change)"
+            android:inputType="textPassword"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_search_bar"/>
+
+        <EditText
+            android:id="@+id/etContact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Contact Info"
+            android:inputType="phone"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_search_bar"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="User Role"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp"
+            android:textColor="?attr/colorOnSurfaceVariant"/>
+
+        <Spinner
+            android:id="@+id/spinnerRole"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:minHeight="48dp"
+            android:background="@drawable/bg_search_bar"/>
+
+    </LinearLayout>
+</ScrollView>

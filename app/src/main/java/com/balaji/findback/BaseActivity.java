@@ -26,15 +26,33 @@ public class BaseActivity extends AppCompatActivity {
 
     protected View aiButton;
     protected String userRole = "user"; // Default
+    private static boolean isFirstLaunch = true;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // Apply theme BEFORE super.onCreate to prevent redundant activity recreation
         if (shouldForceLightMode()) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+            if (AppCompatDelegate.getDefaultNightMode() != AppCompatDelegate.MODE_NIGHT_NO) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+            }
         } else {
             ThemeManager.applyTheme(this);
         }
         super.onCreate(savedInstanceState);
+
+        // Reset AI button position on fresh app start
+        if (isFirstLaunch) {
+            resetAiButtonPosition();
+            isFirstLaunch = false;
+        }
+    }
+
+    private void resetAiButtonPosition() {
+        getSharedPreferences("ai_button_prefs", MODE_PRIVATE)
+                .edit()
+                .remove("pos_x")
+                .remove("pos_y")
+                .apply();
     }
 
     protected boolean shouldForceLightMode() {
@@ -207,8 +225,10 @@ public class BaseActivity extends AppCompatActivity {
             aiButton.setX(savedX);
             aiButton.setY(savedY);
         } else {
-            aiButton.setX(parent.getWidth() - aiButton.getWidth() - 64);
-            aiButton.setY(parent.getHeight() - aiButton.getHeight() - 64);
+            // Updated default initial position to match the screenshot provided
+            // Positioned roughly at 78% height on the right side
+            aiButton.setX(parent.getWidth() - aiButton.getWidth() - 80);
+            aiButton.setY(parent.getHeight() * 0.78f - (aiButton.getHeight() / 2f));
         }
     }
 

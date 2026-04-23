@@ -29,14 +29,14 @@ public class LoginActivity extends BaseActivity {
     FirebaseAuth mAuth;
     FirebaseFirestore db;
 
-    String institutionId;
+    String selectedInstitutionId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        institutionId = getIntent().getStringExtra("institutionId");
+        selectedInstitutionId = getIntent().getStringExtra("institutionId");
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -59,7 +59,6 @@ public class LoginActivity extends BaseActivity {
         goToRegister = findViewById(R.id.goToRegister);
         loadingProgress = findViewById(R.id.loadingProgress);
 
-        // ✅ Show selected institution name
         SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
         String name = prefs.getString("institutionName", "Unknown");
         txtInstitution.setText("Logging into: " + name);
@@ -70,14 +69,14 @@ public class LoginActivity extends BaseActivity {
 
         goToRegister.setOnClickListener(v -> {
             Intent intent = new Intent(this, RegisterActivity.class);
-            intent.putExtra("institutionId", institutionId);
+            intent.putExtra("institutionId", selectedInstitutionId);
             startActivity(intent);
         });
     }
 
     @Override
     protected boolean shouldForceLightMode() {
-        return true; // Force light mode for entry screen
+        return true; 
     }
 
     @Override
@@ -87,19 +86,15 @@ public class LoginActivity extends BaseActivity {
     }
 
     private void startIntroAnimations() {
-
         loginTitle.animate().alpha(1f).setDuration(800).start();
         txtInstitution.animate().alpha(1f).setDuration(800).setStartDelay(100).start();
-
         emailInputLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(200).start();
         passwordInputLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(400).start();
-
         loginButton.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(600).start();
         goToRegister.animate().alpha(1f).setDuration(800).setStartDelay(800).start();
     }
 
     private void loginUser() {
-
         String email = emailEditText.getText().toString().trim();
         String password = passwordEditText.getText().toString().trim();
 
@@ -118,14 +113,11 @@ public class LoginActivity extends BaseActivity {
             return;
         }
 
-        // ✅ Show loading and disable button during login
         showLoading(true);
 
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
-
                     if (task.isSuccessful()) {
-
                         if(mAuth.getCurrentUser() == null) {
                             showLoading(false);
                             return;
@@ -137,22 +129,35 @@ public class LoginActivity extends BaseActivity {
                                 .document(uid)
                                 .get()
                                 .addOnSuccessListener(document -> {
-
                                     if (!document.exists()) {
                                         showLoading(false);
+                                        mAuth.signOut();
                                         Toast.makeText(this,"User data not found",Toast.LENGTH_LONG).show();
                                         return;
                                     }
 
+                                    String userInstitutionId = document.getString("institutionId");
+                                    
+                                    if (selectedInstitutionId != null && !selectedInstitutionId.equals(userInstitutionId)) {
+                                        showLoading(false);
+                                        mAuth.signOut();
+                                        Toast.makeText(this, 
+                                            "Access Denied: You are not registered with this institution.", 
+                                            Toast.LENGTH_LONG).show();
+                                        return;
+                                    }
+
+                                    // ✅ SAVE TO SHARED PREFS FOR SYSTEM-WIDE CONSISTENCY
+                                    SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
+                                    editor.putString("institutionId", userInstitutionId);
+                                    editor.apply();
+
                                     String role = document.getString("role");
                                     String status = document.getString("status");
-                                    institutionId = document.getString("institutionId");
 
                                     if ("BLOCKED".equals(status)) {
-
-                                        FirebaseAuth.getInstance().signOut();
+                                        mAuth.signOut();
                                         showLoading(false);
-
                                         Toast.makeText(this,
                                                 "Your account has been blocked by admin.",
                                                 Toast.LENGTH_LONG).show();
@@ -162,15 +167,12 @@ public class LoginActivity extends BaseActivity {
                                     saveFCMToken(uid);
 
                                     if ("admin".equals(role)) {
-
                                         Intent intent = new Intent(this, AdminDashboardActivity.class);
-                                        intent.putExtra("institutionId", institutionId);
+                                        intent.putExtra("institutionId", userInstitutionId);
                                         startActivity(intent);
-
                                     } else {
-
                                         Intent intent = new Intent(this, MainActivity.class);
-                                        intent.putExtra("institutionId", institutionId);
+                                        intent.putExtra("institutionId", userInstitutionId);
                                         startActivity(intent);
                                     }
 
@@ -201,14 +203,10 @@ public class LoginActivity extends BaseActivity {
     }
 
     private void saveFCMToken(String userId) {
-
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(task -> {
-
                     if (!task.isSuccessful()) return;
-
                     String token = task.getResult();
-
                     db.collection("users")
                             .document(userId)
                             .update("fcmToken", token);

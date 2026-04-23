@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dummy attribute to ensure the R.attr class is generated in the app's R file -->
+    <attr name="dummy_attr" format="color" />
+</resources>

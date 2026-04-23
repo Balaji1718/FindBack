@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/chat_history_card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="4dp"
+    android:layout_marginHorizontal="8dp"
     android:layout_marginVertical="4dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#E0E0E0"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:cardBackgroundColor="?attr/colorSurface"
     android:clickable="true"
     android:focusable="true">
 
@@ -19,31 +21,30 @@
         android:padding="14dp">
 
         <ImageView
-            android:id="@+id/chatIcon"
+            android:id="@+id/chat_history_icon"
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:layout_centerVertical="true"
             android:src="@android:drawable/ic_menu_edit"
-            app:tint="#616161" />
+            app:tint="?attr/colorOnSurfaceVariant" />
 
         <TextView
-            android:id="@+id/historyTitle"
+            android:id="@+id/chat_history_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_marginStart="14dp"
+            android:layout_marginStart="12dp"
             android:layout_marginEnd="8dp"
-            android:layout_toEndOf="@id/chatIcon"
-            android:layout_toStartOf="@+id/moreMenuBtn"
+            android:layout_toEndOf="@id/chat_history_icon"
+            android:layout_toStartOf="@+id/chat_history_menu"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="Chat Session title..."
-            android:textColor="#212121"
-            android:textSize="15sp"
-            android:textStyle="normal" />
+            android:text="Chat Session"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp" />
 
         <ImageView
-            android:id="@+id/moreMenuBtn"
+            android:id="@+id/chat_history_menu"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_alignParentEnd="true"
@@ -51,7 +52,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
             android:src="@android:drawable/ic_menu_more"
-            app:tint="#757575" />
+            app:tint="?attr/colorOnSurfaceVariant" />
 
     </RelativeLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -9,7 +9,7 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F8F9FF">
+        android:background="?attr/colorSurface">
 
         <!-- Header -->
         <LinearLayout
@@ -29,7 +29,10 @@
                 android:gravity="center"
                 android:text="☰"
                 android:textColor="@android:color/white"
-                android:textSize="22sp" />
+                android:textSize="22sp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"/>
 
             <TextView
                 android:layout_width="0dp"
@@ -67,15 +70,15 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:src="@drawable/ic_ai_stars"
-                app:tint="#9C5DB5"
+                app:tint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp"/>
 
             <TextView
                 android:id="@+id/welcomeText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Hey Admin, ready to dive in?"
-                android:textColor="#333333"
+                android:text="Hey, ready to dive in?"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:gravity="center"/>
@@ -85,7 +88,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Ask me anything about your items, claims, or reports."
-                android:textColor="#777777"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp"
                 android:gravity="center"/>
         </LinearLayout>
@@ -109,7 +112,8 @@
             android:layout_margin="12dp"
             app:cardCornerRadius="24dp"
             app:cardElevation="6dp"
-            app:strokeWidth="0dp">
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -126,6 +130,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Ask anything..."
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"
                     android:maxLines="4"
                     android:minHeight="48dp"
                     android:paddingVertical="12dp"
@@ -137,7 +143,7 @@
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@android:drawable/ic_menu_send"
-                    app:tint="#4F86F7" />
+                    app:tint="?attr/colorPrimary" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </RelativeLayout>
@@ -148,7 +154,7 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#FDFDFD"
+        android:background="?attr/colorSurface"
         android:orientation="vertical"
         android:clickable="true"
         android:focusable="true">
@@ -160,24 +166,38 @@
             android:paddingBottom="16dp"
             android:paddingHorizontal="20dp"
             android:text="Recent Chats"
-            android:textColor="#333333"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/historyRecyclerView"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:paddingHorizontal="12dp"
-            android:clipToPadding="false"
-            android:paddingBottom="16dp"/>
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/historyRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingHorizontal="12dp"
+                android:clipToPadding="false"
+                android:paddingBottom="16dp"
+                android:scrollbars="vertical"/>
+
+            <TextView
+                android:id="@+id/noHistoryText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="No recent chats"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone"/>
+        </FrameLayout>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginHorizontal="20dp"
-            android:background="#EEEEEE" />
+            android:background="?attr/colorOutlineVariant" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/drawerNewChatBtn"
@@ -188,12 +208,11 @@
             android:padding="12dp"
             android:text="+ New Chat"
             android:textAllCaps="false"
-            android:textColor="#4F86F7"
+            android:textColor="?attr/colorPrimary"
             android:textSize="16sp"
             android:textStyle="bold"
             app:cornerRadius="12dp"
-            app:rippleColor="#204F86F7"
-            app:strokeColor="#4F86F7"
+            app:strokeColor="?attr/colorPrimary"
             app:strokeWidth="1dp" />
 
     </LinearLayout>

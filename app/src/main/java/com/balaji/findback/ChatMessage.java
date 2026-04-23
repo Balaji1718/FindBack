@@ -13,6 +13,8 @@ public class ChatMessage {
     private boolean offerPdf = false;
     private boolean offerWord = false;
 
+    public ChatMessage() {} // Required for Firestore
+
     public ChatMessage(String message, int type) {
         this.message = message;
         this.type = type;
@@ -28,4 +30,8 @@ public class ChatMessage {
 
     public boolean isOfferWord() { return offerWord; }
     public void setOfferWord(boolean offerWord) { this.offerWord = offerWord; }
+
+    public void setMessage(String message) { this.message = message; }
+    public void setType(int type) { this.type = type; }
+    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
 }

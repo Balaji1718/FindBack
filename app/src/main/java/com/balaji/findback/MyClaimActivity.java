@@ -147,8 +147,8 @@ public class MyClaimActivity extends BaseActivity {
 
                     if (error != null) {
                         Log.e("MY_CLAIMS", "Listen failed: " + error.getMessage());
-                        emptyText.setVisibility(View.VISIBLE);
                         emptyText.setText("Failed to load claims");
+                        emptyText.setVisibility(View.VISIBLE);
                         return;
                     }
 
@@ -157,15 +157,18 @@ public class MyClaimActivity extends BaseActivity {
 
                         for (QueryDocumentSnapshot doc : value) {
                             Claim claim = doc.toObject(Claim.class);
-                            claim.setId(doc.getId());
-                            claimList.add(claim);
+                            if (claim != null) {
+                                claim.setId(doc.getId());
+                                claimList.add(claim);
+                            }
                         }
 
                         adapter.notifyDataSetChanged();
                         
+                        // ✅ FIX: Ensure correct visibility and reset text to avoid stale error messages
                         if (claimList.isEmpty()) {
-                            emptyText.setVisibility(View.VISIBLE);
                             emptyText.setText("No claims available");
+                            emptyText.setVisibility(View.VISIBLE);
                         } else {
                             emptyText.setVisibility(View.GONE);
                         }

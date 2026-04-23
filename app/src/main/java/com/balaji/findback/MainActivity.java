@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -25,7 +24,6 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -34,7 +32,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.balaji.findback.utils.ThemeManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -75,8 +72,8 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     String institutionId;
     ListenerRegistration itemsListener;
 
-    private Set<String> selectedStatuses = new HashSet<>();
-    private Set<String> selectedTypes = new HashSet<>();
+    private final Set<String> selectedStatuses = new HashSet<>();
+    private final Set<String> selectedTypes = new HashSet<>();
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -144,19 +141,23 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         setupBottomNavigation();
         askNotificationPermission();
 
-        SharedPreferences prefs = getSharedPreferences("migration", MODE_PRIVATE);
-        boolean isDone = prefs.getBoolean("items_migrated", false);
-        if (!isDone) {
-            runItemMigration();
-            prefs.edit().putBoolean("items_migrated", true).apply();
-        }
-
+        // REMOVED: runItemMigration() to fix startup lag and performance issues
+        
         FirebaseMessaging.getInstance().subscribeToTopic("test")
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Log.d("FCM", "Subscribed to topic");
                     }
                 });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 🔥 ISSUE 3 FIX: Ensure Home is selected when returning to MainActivity
+        if (bottomNavigation != null) {
+            bottomNavigation.getMenu().findItem(R.id.nav_home).setChecked(true);
+        }
     }
 
     @Override
@@ -180,12 +181,12 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     }
 
     private void updateTabsUI() {
-        int activeColor = Color.parseColor("#4CAF50");
+        // Corrected: Using purple_500 instead of the non-existent 'seed' color
+        int activeColor = ContextCompat.getColor(this, R.color.purple_500);
         int inactiveColor = Color.TRANSPARENT;
         
-        // Fix: Make inactive text color theme-aware (White in Dark mode, Black in Light mode)
         int currentTheme = ThemeManager.getSavedTheme(this);
-        int inactiveTextColor = (currentTheme == ThemeManager.DARK) ? Color.WHITE : Color.BLACK;
+        int inactiveTextColor = (currentTheme == ThemeManager.DARK) ? Color.LTGRAY : Color.DKGRAY;
         int activeTextColor = Color.WHITE;
 
         btnOthers.setBackgroundColor(showMine ? inactiveColor : activeColor);
@@ -193,21 +194,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         
         btnMine.setBackgroundColor(showMine ? activeColor : inactiveColor);
         btnMine.setTextColor(showMine ? activeTextColor : inactiveTextColor);
-    }
-
-    private void runItemMigration() {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("items")
-            .get()
-            .addOnSuccessListener(query -> {
-                for (DocumentSnapshot doc : query.getDocuments()) {
-                    Map<String, Object> updates = new HashMap<>();
-                    if (!doc.contains("reportCount")) updates.put("reportCount", 0);
-                    if (!doc.contains("hidden")) updates.put("hidden", false);
-                    if (!doc.contains("flagged")) updates.put("flagged", false);
-                    if (!updates.isEmpty()) doc.getReference().update(updates);
-                }
-            });
     }
 
     @Override
@@ -293,12 +279,13 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     }
 
     private void updateFilterUI() {
-        int defaultColor = Color.parseColor("#E0E0E0");
+        int currentTheme = ThemeManager.getSavedTheme(this);
+        int defaultColor = (currentTheme == ThemeManager.DARK) ? Color.parseColor("#333333") : Color.parseColor("#E0E0E0");
         int activeColor = Color.parseColor("#4CAF50");
         boolean isAll = selectedTypes.isEmpty() && selectedStatuses.isEmpty();
 
         filterAll.setBackgroundColor(isAll ? activeColor : defaultColor);
-        filterAll.setTextColor(isAll ? Color.WHITE : Color.BLACK);
+        filterAll.setTextColor(isAll ? Color.WHITE : (currentTheme == ThemeManager.DARK ? Color.WHITE : Color.BLACK));
 
         updateBtnUI(filterLost, ivCheckLost, selectedTypes.contains("LOST"), activeColor, defaultColor);
         updateBtnUI(filterFound, ivCheckFound, selectedTypes.contains("FOUND"), activeColor, defaultColor);
@@ -308,7 +295,8 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
     private void updateBtnUI(Button b, ImageView iv, boolean active, int ac, int dc) {
         b.setBackgroundColor(active ? ac : dc);
-        b.setTextColor(active ? Color.WHITE : Color.BLACK);
+        int currentTheme = ThemeManager.getSavedTheme(this);
+        b.setTextColor(active ? Color.WHITE : (currentTheme == ThemeManager.DARK ? Color.WHITE : Color.BLACK));
         iv.setVisibility(active ? View.VISIBLE : View.GONE);
     }
 
@@ -317,7 +305,9 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
             int id = item.getItemId();
             if (id == R.id.nav_home) return true;
             if (id == R.id.nav_post) {
-                startActivity(new Intent(this, PostItemActivity.class));
+                Intent intent = new Intent(this, PostItemActivity.class);
+                intent.putExtra("institutionId", institutionId);
+                startActivity(intent);
                 return true;
             }
             if (id == R.id.nav_claims) {
@@ -345,8 +335,16 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     private void showLogoutConfirmation() {
         new AlertDialog.Builder(this).setTitle("Logout").setMessage("Logout?")
                 .setPositiveButton("Yes", (d, w) -> {
+                    // Clear user session data to prevent institution confusion
+                    SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
+                    editor.remove("institutionId");
+                    editor.remove("institutionName");
+                    editor.apply();
+
                     auth.signOut();
-                    startActivity(new Intent(this, InstitutionSelectionActivity.class));
+                    Intent intent = new Intent(this, InstitutionSelectionActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
                     finish();
                 }).setNegativeButton("No", null).show();
     }
@@ -359,11 +357,19 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                 .addOnSuccessListener(doc -> {
                     if (doc.exists()) {
                         welcomeText.setText("Welcome, " + doc.getString("name"));
-                        institutionId = doc.getString("institutionId");
-                        institutionText.setText("Institution: " + institutionId);
-                        startItemsListener();
+                        String newInstitutionId = doc.getString("institutionId");
+                        
+                        // Only restart listener if institution actually changed
+                        if (institutionId == null || !institutionId.equals(newInstitutionId)) {
+                            institutionId = newInstitutionId;
+                            institutionText.setText("Institution: " + institutionId);
+                            startItemsListener();
+                        } else {
+                            loadingProgress.setVisibility(View.GONE);
+                        }
                     }
-                });
+                })
+                .addOnFailureListener(e -> loadingProgress.setVisibility(View.GONE));
     }
 
     private void startItemsListener() {
@@ -378,7 +384,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
         Log.d(TAG, "Starting items listener for: " + institutionId);
 
-        // Fetch items and filter/sort in Java to avoid index requirements and Firestore limitations
         itemsListener = db.collection("items")
                 .whereEqualTo("institutionId", institutionId)
                 .addSnapshotListener((value, error) -> {
@@ -392,29 +397,24 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                     List<Item> newList = new ArrayList<>();
 
                     if (value != null) {
-                        Log.d(TAG, "Fetched " + value.size() + " items from Firestore");
                         for (QueryDocumentSnapshot doc : value) {
                             Item item = doc.toObject(Item.class);
                             if (item == null) continue;
                             item.setId(doc.getId());
 
-                            // 1. Hidden check (Java side to avoid query mismatch)
                             if (item.isHidden()) continue;
 
-                            // 2. Others / Mine Filter
                             if (showMine) {
                                 if (currentUid == null || !currentUid.equals(item.getPostedBy())) continue;
                             } else {
                                 if (currentUid != null && currentUid.equals(item.getPostedBy())) continue;
                             }
 
-                            // 3. Type Filter
                             if (!selectedTypes.isEmpty()) {
                                 String type = item.getType();
                                 if (type == null || !selectedTypes.contains(type.toUpperCase())) continue;
                             }
 
-                            // 4. Status Filter
                             if (!selectedStatuses.isEmpty()) {
                                 String status = item.getStatus();
                                 if (status == null || !selectedStatuses.contains(status.toUpperCase())) continue;
@@ -424,9 +424,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                         }
                     }
 
-                    Log.d(TAG, "Items after filtering: " + newList.size());
-
-                    // Sort by timestamp (Descending)
                     Collections.sort(newList, (a, b) -> {
                         if (a.getTimestamp() == null || b.getTimestamp() == null) return 0;
                         return b.getTimestamp().compareTo(a.getTimestamp());
@@ -434,7 +431,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
                     itemAdapter.updateList(newList);
                     
-                    // Re-apply search filter if search is active
                     String q = searchView.getQuery().toString();
                     if (!q.isEmpty()) {
                         itemAdapter.filter(q);

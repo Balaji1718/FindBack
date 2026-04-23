@@ -160,12 +160,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/viewUsersBtn"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                style="@style/Widget.MaterialComponents.Button.Icon"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
                 android:text="View Users"
                 app:cornerRadius="12dp"
                 android:layout_marginBottom="12dp"
+                app:icon="@drawable/ic_users"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"/>
 
@@ -178,11 +179,12 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/viewReportsBtn"
-                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                    style="@style/Widget.MaterialComponents.Button.Icon"
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:text="View Reports"
                     app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_reports"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"/>
 

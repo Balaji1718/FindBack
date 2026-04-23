@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="?attr/colorSurface">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
@@ -25,6 +26,7 @@
             android:text="Institution Items"
             android:textSize="22sp"
             android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
             android:layout_marginTop="16dp"
             android:layout_marginStart="16dp"
             app:layout_constraintTop_toTopOf="parent"
@@ -48,7 +50,7 @@
             android:layout_height="wrap_content"
             android:text="No items found for this institution."
             android:textSize="16sp"
-            android:textColor="#888888"
+            android:textColor="?attr/colorOutline"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -61,6 +63,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:padding="10dp"
+            android:clipToPadding="false"
             app:layout_constraintTop_toBottomOf="@id/itemsTitle"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"

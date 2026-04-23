@@ -167,7 +167,8 @@ public class ReportsActivity extends BaseActivity {
                         .setMessage("Are you sure you want to delete this reported item? This will also close all related reports.")
                         .setPositiveButton("Delete", (dialog, which) -> {
                             if (itemId != null) {
-                                db.collection("items").document(itemId).delete()
+                                // Instead of direct deletion, we mark as hidden for audit/recovery
+                                db.collection("items").document(itemId).update("hidden", true)
                                         .addOnSuccessListener(unused -> {
                                             db.collection("reports")
                                                     .whereEqualTo("itemId", itemId)
@@ -179,12 +180,12 @@ public class ReportsActivity extends BaseActivity {
                                                                         Log.e("REPORT_UPDATE", e.getMessage());
                                                                     });
                                                         }
-                                                        Toast.makeText(ReportsActivity.this, "Item deleted and related reports closed", Toast.LENGTH_SHORT).show();
+                                                        Toast.makeText(ReportsActivity.this, "Item hidden and related reports closed", Toast.LENGTH_SHORT).show();
                                                     });
                                         })
                                         .addOnFailureListener(e -> {
-                                            Log.e("REPORT_UPDATE", "Delete failed: " + e.getMessage());
-                                            Toast.makeText(ReportsActivity.this, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                            Log.e("REPORT_UPDATE", "Action failed: " + e.getMessage());
+                                            Toast.makeText(ReportsActivity.this, "Action failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                                         });
                             }
                         })

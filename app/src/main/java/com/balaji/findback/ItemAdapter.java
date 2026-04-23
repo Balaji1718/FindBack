@@ -52,7 +52,6 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
         this.fullList = new ArrayList<>(itemList);
         this.isAdmin = isAdmin;
         
-        // Fetch current user details for Prompt 2
         this.currentUserId = FirebaseAuth.getInstance().getUid();
         loadCurrentUserRole();
     }
@@ -87,21 +86,17 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Item item = itemList.get(position);
 
-        // TITLE
         holder.textTitle.setText(item.getTitle() != null ? item.getTitle() : "Untitled Item");
 
-        // TYPE
         String type = item.getType();
         if (type != null) {
             holder.textType.setText(type.toUpperCase());
             holder.textType.setTextColor(type.equalsIgnoreCase("lost") ? Color.RED : Color.parseColor("#4CAF50"));
         }
 
-        // POSTED BY
         String name = item.getPostedByName();
         holder.textPostedBy.setText(name != null ? "Posted by: " + name : "Posted by: Anonymous");
 
-        // STATUS & BADGE
         String status = item.getStatus();
         if (status != null) {
             holder.statusBadge.setText(status.toUpperCase());
@@ -114,44 +109,27 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
             }
         }
 
-        // TIME
         Timestamp timestamp = item.getTimestamp();
         holder.textTime.setText(timestamp != null ? getTimeAgo(timestamp) : "just now");
 
-        // ADMIN LOGIC
+        boolean isOwner = item.getPostedBy() != null && currentUserId != null && item.getPostedBy().equals(currentUserId);
+
         if (isAdmin) {
-            holder.adminMenuBtn.setVisibility(View.VISIBLE);
-            holder.btnReport.setVisibility(View.GONE); // Hide report button for admin
-            holder.adminMenuBtn.setOnClickListener(v -> showAdminOptions(item, position));
+            holder.btnOptions.setVisibility(View.VISIBLE);
+            holder.btnReport.setVisibility(View.GONE);
+            holder.btnOptions.setOnClickListener(v -> showAdminOptions(item, position));
+        } else if (isOwner) {
+            holder.btnOptions.setVisibility(View.VISIBLE);
+            holder.btnReport.setVisibility(View.GONE);
+            holder.btnOptions.setOnClickListener(v -> showOwnerOptions(item, position));
         } else {
-            holder.adminMenuBtn.setVisibility(View.GONE);
-            
-            // Prompt 2: Hide report button logic
-            boolean hideReport = false;
-            
-            // 1. Hide if admin
-            if ("admin".equals(currentUserRole)) {
-                hideReport = true;
-            }
-            
-            // 2. Hide if own item
-            if (item.getPostedBy() != null && currentUserId != null && item.getPostedBy().equals(currentUserId)) {
-                hideReport = true;
-            }
-            
-            if (hideReport) {
-                holder.btnReport.setVisibility(View.GONE);
-            } else {
-                holder.btnReport.setVisibility(View.VISIBLE);
-                holder.btnReport.setOnClickListener(v -> {
-                    if (actionListener != null) {
-                        actionListener.onReportClick(item);
-                    }
-                });
-            }
+            holder.btnOptions.setVisibility(View.GONE);
+            holder.btnReport.setVisibility(View.VISIBLE);
+            holder.btnReport.setOnClickListener(v -> {
+                if (actionListener != null) actionListener.onReportClick(item);
+            });
         }
 
-        // ITEM CLICK -> DETAIL
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, ItemDetailActivity.class);
             intent.putExtra("title", item.getTitle());
@@ -164,10 +142,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
             context.startActivity(intent);
         });
 
-        // IMAGE LOADING & BLUR LOGIC
         String imageBase64 = item.getImageBase64();
-        
-        // Reset RenderEffect (important for RecyclerView recycling)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             holder.imageItem.setRenderEffect(null);
         }
@@ -178,12 +153,9 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
                 holder.imageItem.setImageBitmap(bitmap);
 
-                // Apply blur only for OPEN items to protect privacy
                 if (status != null && status.equalsIgnoreCase("OPEN")) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        holder.imageItem.setRenderEffect(
-                                RenderEffect.createBlurEffect(25f, 25f, Shader.TileMode.CLAMP)
-                        );
+                        holder.imageItem.setRenderEffect(RenderEffect.createBlurEffect(25f, 25f, Shader.TileMode.CLAMP));
                     }
                 }
 
@@ -207,13 +179,52 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
         }
     }
 
+    private void showOwnerOptions(Item item, int position) {
+        String status = item.getStatus();
+        
+        // ✅ RESTRICTION: Don't allow edit/delete if claim is in progress or completed
+        if (status != null && (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("RETURNED"))) {
+            Toast.makeText(context, "Cannot modify item after a claim has been made.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String[] options = {"Edit Item", "Delete Item"};
+        new AlertDialog.Builder(context)
+                .setTitle("Manage My Item")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) editItem(item);
+                    else if (which == 1) confirmDelete(item, position);
+                })
+                .show();
+    }
+
+    private void editItem(Item item) {
+        Intent intent = new Intent(context, PostItemActivity.class);
+        intent.putExtra("isEdit", true);
+        intent.putExtra("itemId", item.getId());
+        intent.putExtra("title", item.getTitle());
+        intent.putExtra("description", item.getDescription());
+        intent.putExtra("type", item.getType());
+        intent.putExtra("imageBase64", item.getImageBase64());
+        context.startActivity(intent);
+    }
+
+    private void confirmDelete(Item item, int position) {
+        new AlertDialog.Builder(context)
+                .setTitle("Delete Item")
+                .setMessage("Are you sure you want to delete this post?")
+                .setPositiveButton("Delete", (d, w) -> deleteItem(item, position))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void showAdminOptions(Item item, int position) {
         String[] options = {"Mark as Returned", "Delete Item", "Flag Item"};
         new AlertDialog.Builder(context)
                 .setTitle("Admin Moderation")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) markAsReturned(item, position);
-                    else if (which == 1) deleteItem(item, position);
+                    else if (which == 1) confirmDelete(item, position);
                     else if (which == 2) flagItem(item);
                 })
                 .show();
@@ -235,8 +246,10 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
                 .document(item.getId())
                 .delete()
                 .addOnSuccessListener(aVoid -> {
-                    itemList.remove(position);
-                    notifyItemRemoved(position);
+                    if (position < itemList.size()) {
+                        itemList.remove(position);
+                        notifyItemRemoved(position);
+                    }
                     Toast.makeText(context, "Item deleted", Toast.LENGTH_SHORT).show();
                 });
     }
@@ -293,7 +306,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView imageItem;
         TextView textTitle, textType, textPostedBy, statusBadge, textTime;
-        ImageButton adminMenuBtn, btnReport;
+        ImageButton btnOptions, btnReport;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -303,7 +316,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
             textPostedBy = itemView.findViewById(R.id.textPostedBy);
             statusBadge = itemView.findViewById(R.id.statusBadge);
             textTime = itemView.findViewById(R.id.textTime);
-            adminMenuBtn = itemView.findViewById(R.id.adminMenuBtn);
+            btnOptions = itemView.findViewById(R.id.btnOptions);
             btnReport = itemView.findViewById(R.id.btnReport);
         }
     }

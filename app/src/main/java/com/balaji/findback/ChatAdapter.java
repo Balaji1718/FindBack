@@ -41,6 +41,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         notifyDataSetChanged();
     }
 
+    public List<ChatMessage> getMessages() {
+        return new ArrayList<>(messages);
+    }
+
     public void removeLoadingMessage() {
         for (int i = messages.size() - 1; i >= 0; i--) {
             if (messages.get(i).getType() == ChatMessage.TYPE_LOADING) {
