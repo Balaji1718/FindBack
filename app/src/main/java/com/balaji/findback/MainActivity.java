@@ -71,6 +71,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
     String institutionId;
     ListenerRegistration itemsListener;
+    ListenerRegistration userListener;
 
     private final Set<String> selectedStatuses = new HashSet<>();
     private final Set<String> selectedTypes = new HashSet<>();
@@ -136,13 +137,11 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
         setupFilters();
         setupTabs();
-        loadUserInfo();
+        startUserListener();
         setupSearch();
         setupBottomNavigation();
         askNotificationPermission();
 
-        // REMOVED: runItemMigration() to fix startup lag and performance issues
-        
         FirebaseMessaging.getInstance().subscribeToTopic("test")
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
@@ -154,7 +153,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     @Override
     protected void onResume() {
         super.onResume();
-        // 🔥 ISSUE 3 FIX: Ensure Home is selected when returning to MainActivity
         if (bottomNavigation != null) {
             bottomNavigation.getMenu().findItem(R.id.nav_home).setChecked(true);
         }
@@ -181,7 +179,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     }
 
     private void updateTabsUI() {
-        // Corrected: Using purple_500 instead of the non-existent 'seed' color
         int activeColor = ContextCompat.getColor(this, R.color.purple_500);
         int inactiveColor = Color.TRANSPARENT;
         
@@ -335,7 +332,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     private void showLogoutConfirmation() {
         new AlertDialog.Builder(this).setTitle("Logout").setMessage("Logout?")
                 .setPositiveButton("Yes", (d, w) -> {
-                    // Clear user session data to prevent institution confusion
                     SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
                     editor.remove("institutionId");
                     editor.remove("institutionName");
@@ -349,17 +345,24 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                 }).setNegativeButton("No", null).show();
     }
 
-    private void loadUserInfo() {
+    private void startUserListener() {
         String uid = auth.getUid();
         if (uid == null) return;
+        
         loadingProgress.setVisibility(View.VISIBLE);
-        db.collection("users").document(uid).get()
-                .addOnSuccessListener(doc -> {
-                    if (doc.exists()) {
+        
+        // Real-time user data to react to role or institution changes immediately
+        userListener = db.collection("users").document(uid)
+                .addSnapshotListener((doc, error) -> {
+                    if (error != null) {
+                        loadingProgress.setVisibility(View.GONE);
+                        return;
+                    }
+                    
+                    if (doc != null && doc.exists()) {
                         welcomeText.setText("Welcome, " + doc.getString("name"));
                         String newInstitutionId = doc.getString("institutionId");
                         
-                        // Only restart listener if institution actually changed
                         if (institutionId == null || !institutionId.equals(newInstitutionId)) {
                             institutionId = newInstitutionId;
                             institutionText.setText("Institution: " + institutionId);
@@ -368,8 +371,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                             loadingProgress.setVisibility(View.GONE);
                         }
                     }
-                })
-                .addOnFailureListener(e -> loadingProgress.setVisibility(View.GONE));
+                });
     }
 
     private void startItemsListener() {
@@ -462,5 +464,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     protected void onDestroy() {
         super.onDestroy();
         if (itemsListener != null) itemsListener.remove();
+        if (userListener != null) userListener.remove();
     }
 }

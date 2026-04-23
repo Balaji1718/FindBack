@@ -35,7 +35,6 @@ public class InstitutionSelectionActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_institution_selection);
 
-        // Standard toolbar setup from BaseActivity
         setupToolbar("Institution Selection", false);
 
         recyclerView = findViewById(R.id.recyclerView);
@@ -66,7 +65,7 @@ public class InstitutionSelectionActivity extends BaseActivity {
 
     @Override
     protected boolean shouldForceLightMode() {
-        return true; // Force light mode for entry screen
+        return true; 
     }
 
     private void checkUserLogin() {
@@ -79,15 +78,20 @@ public class InstitutionSelectionActivity extends BaseActivity {
                         if (doc.exists()) {
                             String role = doc.getString("role");
                             String instId = doc.getString("institutionId");
+                            
+                            // Cache institutionId immediately to speed up navigation
+                            SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
+                            editor.putString("institutionId", instId);
+                            editor.apply();
+
+                            Intent intent;
                             if ("admin".equals(role)) {
-                                Intent intent = new Intent(this, AdminDashboardActivity.class);
-                                intent.putExtra("institutionId", instId);
-                                startActivity(intent);
+                                intent = new Intent(this, AdminDashboardActivity.class);
                             } else {
-                                Intent intent = new Intent(this, MainActivity.class);
-                                intent.putExtra("institutionId", instId);
-                                startActivity(intent);
+                                intent = new Intent(this, MainActivity.class);
                             }
+                            intent.putExtra("institutionId", instId);
+                            startActivity(intent);
                             finish();
                         }
                     });

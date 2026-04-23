@@ -16,7 +16,6 @@ import android.text.TextPaint;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
-import android.view.animation.AlphaAnimation;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -34,7 +33,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.balaji.findback.utils.NetworkUtils;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -69,6 +71,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private String currentSessionId = null;
     
     private String institutionId = null;
+    private FirebaseFirestore db;
 
     private static final String PREFS_NAME = "ai_chat_prefs";
     private static final String KEY_SESSIONS = "sessions";
@@ -98,8 +101,10 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ai_chat);
 
-        SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
-        institutionId = prefs.getString("institutionId", null);
+        db = FirebaseFirestore.getInstance();
+
+        SharedPreferences appPrefs = getSharedPreferences("app", MODE_PRIVATE);
+        institutionId = appPrefs.getString("institutionId", null);
 
         drawerLayout = findViewById(R.id.drawerLayout);
         welcomeLayout = findViewById(R.id.welcomeLayout);
@@ -128,7 +133,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         historyRecyclerView.setAdapter(historyAdapter);
 
         loadSavedData();
-        reloadUserData(null);
+        refreshUserData();
 
         findViewById(R.id.menuIcon).setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
@@ -188,19 +193,19 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         } catch (IOException e) { Log.e(TAG, "Error saving Word", e); }
     }
 
-    private void reloadUserData(Runnable onComplete) {
+    private void refreshUserData() {
         FirebaseAuth auth = FirebaseAuth.getInstance();
         if (auth.getCurrentUser() != null) {
-            FirebaseFirestore.getInstance().collection("users").document(auth.getUid()).get()
+            db.collection("users").document(auth.getUid()).get()
                     .addOnSuccessListener(doc -> {
                         if (doc.exists()) {
                             institutionId = doc.getString("institutionId");
                             userRole = doc.getString("role");
                             if (userRole == null) userRole = "user";
                             String name = doc.getString("name");
-                            if (name != null) welcomeText.setText("Hey " + name + ", ready to dive in?");
+                            if (name != null && welcomeText != null) welcomeText.setText("Hey " + name + ", ready to dive in?");
+                            getSharedPreferences("app", MODE_PRIVATE).edit().putString("institutionId", institutionId).apply();
                         }
-                        if (onComplete != null) onComplete.run();
                     });
         }
     }
@@ -210,40 +215,116 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         if (auth.getCurrentUser() == null) return;
         String uid = auth.getUid();
 
+        // Load local cache first for speed
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         Gson gson = new Gson();
-
         String sessionsJson = prefs.getString(KEY_SESSIONS + "_" + uid, null);
         if (sessionsJson != null) {
             try {
                 Type type = new TypeToken<ArrayList<ChatSession>>() {}.getType();
                 sessionList = gson.fromJson(sessionsJson, type);
             } catch (Exception e) { sessionList = new ArrayList<>(); }
-        } else { sessionList = new ArrayList<>(); }
-
+        }
+        
         String historyJson = prefs.getString(KEY_HISTORY + "_" + uid, null);
         if (historyJson != null) {
             try {
                 Type type = new TypeToken<HashMap<String, List<ChatMessage>>>() {}.getType();
                 chatHistoryMap = gson.fromJson(historyJson, type);
             } catch (Exception e) { chatHistoryMap = new HashMap<>(); }
-        } else { chatHistoryMap = new HashMap<>(); }
+        }
 
         updateHistoryUI();
+        
+        // Sync with Firestore in background for cross-device support
+        syncFromFirestore(uid);
     }
 
-    private void saveData() {
+    private void syncFromFirestore(String uid) {
+        db.collection("users").document(uid).collection("chat_sessions")
+                .orderBy("lastTimestamp", Query.Direction.DESCENDING)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (queryDocumentSnapshots.isEmpty()) return;
+                    
+                    sessionList.clear();
+                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
+                        ChatSession session = doc.toObject(ChatSession.class);
+                        if (session != null) {
+                            sessionList.add(session);
+                            // Load messages for each session from subcollection
+                            loadMessagesFromFirestore(uid, session.getSessionId());
+                        }
+                    }
+                    updateHistoryUI();
+                    saveLocalCache();
+                });
+    }
+
+    private void loadMessagesFromFirestore(String uid, String sessionId) {
+        db.collection("users").document(uid).collection("chat_sessions")
+                .document(sessionId).collection("messages")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .get()
+                .addOnSuccessListener(query -> {
+                    List<ChatMessage> messages = new ArrayList<>();
+                    for (DocumentSnapshot doc : query) {
+                        ChatMessage msg = doc.toObject(ChatMessage.class);
+                        if (msg != null) messages.add(msg);
+                    }
+                    chatHistoryMap.put(sessionId, messages);
+                    if (sessionId.equals(currentSessionId)) {
+                        chatAdapter.setMessages(new ArrayList<>(messages));
+                    }
+                    saveLocalCache();
+                });
+    }
+
+    private void saveLocalCache() {
         FirebaseAuth auth = FirebaseAuth.getInstance();
         if (auth.getCurrentUser() == null) return;
         String uid = auth.getUid();
-
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         Gson gson = new Gson();
-
         editor.putString(KEY_SESSIONS + "_" + uid, gson.toJson(sessionList));
         editor.putString(KEY_HISTORY + "_" + uid, gson.toJson(chatHistoryMap));
         editor.apply();
+    }
+
+    private void saveData(String sessionId) {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        if (auth.getCurrentUser() == null || sessionId == null) return;
+        String uid = auth.getUid();
+
+        saveLocalCache();
+
+        // Sync specific session to Firestore
+        ChatSession targetSession = null;
+        for (ChatSession s : sessionList) {
+            if (s.getSessionId().equals(sessionId)) {
+                targetSession = s;
+                break;
+            }
+        }
+
+        if (targetSession != null) {
+            db.collection("users").document(uid).collection("chat_sessions")
+                    .document(sessionId).set(targetSession);
+            
+            // Sync messages
+            List<ChatMessage> messages = chatHistoryMap.get(sessionId);
+            if (messages != null) {
+                WriteBatch batch = db.batch();
+                for (int i = 0; i < messages.size(); i++) {
+                    ChatMessage m = messages.get(i);
+                    // Use index or timestamp as ID to ensure order and avoid duplicates
+                    batch.set(db.collection("users").document(uid).collection("chat_sessions")
+                            .document(sessionId).collection("messages").document(String.valueOf(i)), m);
+                }
+                batch.commit();
+            }
+        }
     }
 
     private void startNewChat() {
@@ -258,7 +339,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private void addSessionToHistory(String id, String title, String userId) {
         ChatSession session = new ChatSession(id, title, userId, institutionId);
         sessionList.add(0, session);
-        saveData();
+        saveData(id);
     }
 
     @Override
@@ -297,7 +378,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                             }
                         }
                         updateHistoryUI();
-                        saveData();
+                        saveData(session.getSessionId());
                     }
                 }).setNegativeButton("Cancel", null).show();
     }
@@ -314,11 +395,19 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                         }
                     }
                     if (toRemove != null) {
+                        String id = toRemove.getSessionId();
                         sessionList.remove(toRemove);
-                        chatHistoryMap.remove(toRemove.getSessionId());
-                        if (toRemove.getSessionId().equals(currentSessionId)) startNewChat();
+                        chatHistoryMap.remove(id);
+                        if (id.equals(currentSessionId)) startNewChat();
+                        
+                        // Delete from Firestore
+                        String uid = FirebaseAuth.getInstance().getUid();
+                        if (uid != null) {
+                            db.collection("users").document(uid).collection("chat_sessions").document(id).delete();
+                        }
+                        
                         updateHistoryUI();
-                        saveData();
+                        saveLocalCache();
                     }
                 }).setNegativeButton("Cancel", null).show();
     }
@@ -338,7 +427,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         }
         String text = messageInput.getText().toString().trim();
         if (text.isEmpty()) return;
-        reloadUserData(() -> executeAISendChain(text));
+        executeAISendChain(text);
     }
 
     private void executeAISendChain(String text) {
@@ -363,10 +452,32 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         chatAdapter.addMessage(loadingMsg);
         chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
 
-        InstitutionContextProvider.load(institutionId, context -> {
+        String finalInstId = institutionId != null ? institutionId : "default";
+
+        InstitutionContextProvider.load(finalInstId, context -> {
             String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
             callNvidia(roleContext, requestSessionId, text);
         });
+    }
+
+    private void handleAiSuccess(String response, String userPrompt) {
+        chatAdapter.removeLoadingMessage();
+        ChatMessage aiMsg = new ChatMessage(response, ChatMessage.TYPE_AI);
+        chatAdapter.addMessage(aiMsg);
+        saveMessageToCurrentSession(aiMsg);
+        chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
+        saveData(currentSessionId);
+    }
+
+    private void saveMessageToCurrentSession(ChatMessage msg) {
+        if (currentSessionId != null) {
+            List<ChatMessage> history = chatHistoryMap.get(currentSessionId);
+            if (history == null) {
+                history = new ArrayList<>();
+                chatHistoryMap.put(currentSessionId, history);
+            }
+            history.add(msg);
+        }
     }
 
     private void callNvidia(String context, String sessionId, String text) {
@@ -393,44 +504,12 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private void callCohere(String context, String sessionId, String text) {
         cohereApiService.sendMessage(context, chatAdapter.getMessages(), text, new CohereApiService.ChatCallback() {
             @Override public void onSuccess(String response) { if (sessionId.equals(currentSessionId)) handleAiSuccess(response, text); }
-            @Override public void onFailure(String error) {
+            @Override public void onFailure(String error) { 
                 if (sessionId.equals(currentSessionId)) {
                     chatAdapter.removeLoadingMessage();
-                    postMessage(new ChatMessage("AI Assistant is unavailable.", ChatMessage.TYPE_AI));
+                    Toast.makeText(AiChatActivity.this, "All AI services failed. Please try again later.", Toast.LENGTH_LONG).show();
                 }
             }
         });
-    }
-
-    private void handleAiSuccess(String response, String originalText) {
-        chatAdapter.removeLoadingMessage();
-        ChatMessage aiMsg = new ChatMessage(response.replace("**", "").trim(), ChatMessage.TYPE_AI);
-        if ("admin".equals(userRole) && (originalText.toLowerCase().contains("pdf") || response.contains("|"))) {
-            aiMsg.setOfferPdf(true); aiMsg.setOfferWord(true);
-        }
-        postMessage(aiMsg);
-    }
-
-    private void postMessage(ChatMessage msg) {
-        chatAdapter.addMessage(msg);
-        chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
-        saveMessageToCurrentSession(msg);
-    }
-
-    private void saveMessageToCurrentSession(ChatMessage msg) {
-        if (currentSessionId != null) {
-            List<ChatMessage> list = chatHistoryMap.get(currentSessionId);
-            if (list == null) {
-                list = new ArrayList<>();
-                chatHistoryMap.put(currentSessionId, list);
-            }
-            list.add(msg);
-            saveData();
-        }
-    }
-
-    @Override public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.closeDrawer(GravityCompat.START);
-        else super.onBackPressed();
     }
 }

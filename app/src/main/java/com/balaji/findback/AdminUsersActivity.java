@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +26,13 @@ public class AdminUsersActivity extends BaseActivity {
     ProgressBar loadingProgress;
     List<UserModel> userList;
     UserAdapter adapter;
+    ListenerRegistration userListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_users);
 
-        // Initialize Toolbar with back arrow and empty title to match screenshot
         setupToolbar("", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
@@ -48,61 +50,67 @@ public class AdminUsersActivity extends BaseActivity {
 
         db = FirebaseFirestore.getInstance();
 
-        loadUsers();
+        startListeningUsers();
     }
 
-    private void loadUsers(){
-        if (institutionId == null) return;
+    private void startListeningUsers() {
+        if (institutionId == null) {
+            emptyText.setVisibility(View.VISIBLE);
+            emptyText.setText("No institution ID provided");
+            return;
+        }
 
         loadingProgress.setVisibility(View.VISIBLE);
-        emptyText.setVisibility(View.GONE);
-
-        // Prompt 1: Replace Firestore query to hide admin users
-        db.collection("users")
-                .whereEqualTo("role", "user")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
+        
+        // Remove role filter to show ALL users in the institution, 
+        // including admins if they belong to this institutionId.
+        // Also added real-time updates via addSnapshotListener
+        userListener = db.collection("users")
+                .whereEqualTo("institutionId", institutionId)
+                .addSnapshotListener((value, error) -> {
                     loadingProgress.setVisibility(View.GONE);
+                    
+                    if (error != null) {
+                        Log.e("ADMIN_USERS", "Listen failed: " + error.getMessage());
+                        return;
+                    }
 
                     userList.clear();
-
-                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                        UserModel user = doc.toObject(UserModel.class);
-                        if (user != null) {
-                            String role = doc.getString("role");
-                            
-                            // Safety: If role is null -> treat as "user"
-                            if (role == null) role = "user";
-                            
-                            // Double check role and filter by institutionId in Java
-                            if ("user".equals(role)) {
-                                String userInstId = doc.getString("institutionId");
-                                if (institutionId.equals(userInstId)) {
-                                    user.setUid(doc.getId());
-                                    userList.add(user);
-                                }
+                    if (value != null) {
+                        for (DocumentSnapshot doc : value) {
+                            UserModel user = doc.toObject(UserModel.class);
+                            if (user != null) {
+                                user.setUid(doc.getId());
+                                userList.add(user);
                             }
                         }
                     }
 
-                    int count = userList.size();
-                    userCount.setText("Total Users: " + count);
-
-                    if (userList.isEmpty()) {
-                        emptyText.setVisibility(View.VISIBLE);
-                        recyclerView.setVisibility(View.GONE);
-                    } else {
-                        emptyText.setVisibility(View.GONE);
-                        recyclerView.setVisibility(View.VISIBLE);
-                    }
-
-                    adapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e -> {
-                    loadingProgress.setVisibility(View.GONE);
-                    Log.e("ADMIN_USERS", "Error loading users: " + e.getMessage());
-                    emptyText.setVisibility(View.VISIBLE);
-                    emptyText.setText("Failed to load users");
+                    updateUI();
                 });
+    }
+
+    private void updateUI() {
+        int count = userList.size();
+        userCount.setText("Total Users: " + count);
+
+        if (userList.isEmpty()) {
+            emptyText.setVisibility(View.VISIBLE);
+            emptyText.setText("No users found for this institution");
+            recyclerView.setVisibility(View.GONE);
+        } else {
+            emptyText.setVisibility(View.GONE);
+            recyclerView.setVisibility(View.VISIBLE);
+        }
+
+        adapter.notifyDataSetChanged();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (userListener != null) {
+            userListener.remove();
+        }
     }
 }

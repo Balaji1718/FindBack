@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +26,13 @@ public class AdminClaimsActivity extends BaseActivity {
     List<Claim> claimList;
     FirebaseFirestore db;
     String institutionId;
+    ListenerRegistration claimsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_claims);
 
-        // Initialize Toolbar with back arrow
         setupToolbar("", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
@@ -42,31 +44,41 @@ public class AdminClaimsActivity extends BaseActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         claimList = new ArrayList<>();
-        // 🔥 Admin has full control
         adapter = new ClaimAdapter(this, claimList, true);
         recyclerView.setAdapter(adapter);
 
         db = FirebaseFirestore.getInstance();
-        loadClaims();
+        startListeningClaims();
     }
 
-    private void loadClaims() {
+    private void startListeningClaims() {
         if (institutionId == null) return;
 
         loadingProgress.setVisibility(View.VISIBLE);
         emptyText.setVisibility(View.GONE);
 
-        db.collection("claims")
+        // Real-time updates with SnapshotListener
+        claimsListener = db.collection("claims")
                 .whereEqualTo("institutionId", institutionId)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener((value, error) -> {
                     loadingProgress.setVisibility(View.GONE);
+                    
+                    if (error != null) {
+                        Log.e("ADMIN_CLAIMS", "Listen failed: " + error.getMessage());
+                        emptyText.setVisibility(View.VISIBLE);
+                        emptyText.setText("Error: " + error.getMessage());
+                        return;
+                    }
+
                     claimList.clear();
-                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                        Claim claim = doc.toObject(Claim.class);
-                        if (claim != null) {
-                            claim.setId(doc.getId()); // Ensure ID is set
-                            claimList.add(claim);
+                    if (value != null) {
+                        for (DocumentSnapshot doc : value) {
+                            Claim claim = doc.toObject(Claim.class);
+                            if (claim != null) {
+                                claim.setId(doc.getId());
+                                claimList.add(claim);
+                            }
                         }
                     }
 
@@ -80,13 +92,14 @@ public class AdminClaimsActivity extends BaseActivity {
                     }
 
                     adapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e -> {
-                    loadingProgress.setVisibility(View.GONE);
-                    Log.e("ADMIN_CLAIMS", "Error loading claims: " + e.getMessage());
-                    emptyText.setVisibility(View.VISIBLE);
-                    emptyText.setText("Failed to load claims");
-                    recyclerView.setVisibility(View.GONE);
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (claimsListener != null) {
+            claimsListener.remove();
+        }
     }
 }

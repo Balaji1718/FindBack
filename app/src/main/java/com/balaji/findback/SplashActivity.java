@@ -1,6 +1,7 @@
 package com.balaji.findback;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,7 +28,6 @@ public class SplashActivity extends AppCompatActivity {
 
         TextView text = findViewById(R.id.loadingText);
 
-        // 🔁 Change text dynamically (Prompt 8)
         Handler handler = new Handler(Looper.getMainLooper());
         for (int i = 0; i < messages.length; i++) {
             int index = i;
@@ -35,22 +35,30 @@ public class SplashActivity extends AppCompatActivity {
                 if (text != null) {
                     text.setText(messages[index]);
                 }
-            }, i * 1000);
+            }, i * 800); // Slightly faster transitions
         }
 
-        // Navigation logic (Prompt 8)
+        // Reduced delay from 3000ms to 1500ms for faster entry
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
             if (user != null) {
-                // If user logged in -> Route based on role (Safety addition)
-                checkUserRoleAndNavigate(user.getUid());
+                // Check if we have cached institutionId to speed up navigation
+                SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
+                String cachedInstId = prefs.getString("institutionId", null);
+                
+                if (cachedInstId != null) {
+                    // Quick path: use cached data to start navigation immediately
+                    // The target activity will still verify data via SnapshotListener
+                    checkUserRoleAndNavigate(user.getUid());
+                } else {
+                    checkUserRoleAndNavigate(user.getUid());
+                }
             } else {
-                // Else -> InstitutionSelectionActivity
                 startActivity(new Intent(this, InstitutionSelectionActivity.class));
                 finish();
             }
-        }, 3000);
+        }, 1500);
     }
 
     private void checkUserRoleAndNavigate(String uid) {
@@ -60,6 +68,11 @@ public class SplashActivity extends AppCompatActivity {
                     if (document.exists()) {
                         String role = document.getString("role");
                         String institutionId = document.getString("institutionId");
+
+                        // Cache it immediately for other activities
+                        getSharedPreferences("app", MODE_PRIVATE).edit()
+                                .putString("institutionId", institutionId)
+                                .apply();
 
                         Intent intent;
                         if ("admin".equals(role)) {
@@ -75,13 +88,11 @@ public class SplashActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        // If user record missing, go to selection
                         startActivity(new Intent(this, InstitutionSelectionActivity.class));
                         finish();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    // On failure, go to selection
                     startActivity(new Intent(this, InstitutionSelectionActivity.class));
                     finish();
                 });
