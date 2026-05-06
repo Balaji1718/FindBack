@@ -20,8 +20,8 @@ import java.util.concurrent.Executors;
 
 public class NvidiaApiService {
 
+    private static final String TAG = "NvidiaAI";
     private static final String API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-    // 🔥 FIXED: Using correct model identifier to prevent 404 errors
     private static final String PRIMARY_MODEL = "meta/llama-3.1-8b-instruct"; 
     
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
@@ -33,6 +33,12 @@ public class NvidiaApiService {
     }
 
     public void sendMessageStructured(String context, List<ChatMessage> history, String userPrompt, ChatCallback callback) {
+        String apiKey = ApiConfig.getApiKey(BuildConfig.NVIDIA_API_KEY, ApiConfig.NVIDIA_API_KEY);
+        if (apiKey == null) {
+            mainHandler.post(() -> callback.onFailure("NVIDIA API Key missing"));
+            return;
+        }
+
         executorService.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -40,12 +46,10 @@ public class NvidiaApiService {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + BuildConfig.NVIDIA_API_KEY);
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
-                
-                // Increased timeouts for stability
-                conn.setConnectTimeout(60000);
-                conn.setReadTimeout(60000);
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(30000);
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", PRIMARY_MODEL);
@@ -54,15 +58,9 @@ public class NvidiaApiService {
                 jsonBody.put("max_tokens", 1024);
 
                 JSONArray messages = new JSONArray();
-
                 JSONObject systemMessage = new JSONObject();
-                String systemPrompt = "You are a helpful Lost and Found AI assistant. " +
-                    "Use the provided institution data to answer accurately. " +
-                    "Respond using this structure:\nTitle:\nSummary:\nKey Points:\nConclusion:\n\n" +
-                    "Context:\n" + context;
-                
                 systemMessage.put("role", "system");
-                systemMessage.put("content", systemPrompt);
+                systemMessage.put("content", "You are a helpful Lost and Found AI assistant. Use this context to answer queries for this specific institution:\n" + context);
                 messages.put(systemMessage);
 
                 for (ChatMessage chat : history) {
@@ -80,9 +78,8 @@ public class NvidiaApiService {
 
                 jsonBody.put("messages", messages);
 
-                byte[] input = jsonBody.toString().getBytes(StandardCharsets.UTF_8);
                 try (OutputStream os = conn.getOutputStream()) {
-                    os.write(input, 0, input.length);
+                    os.write(jsonBody.toString().getBytes(StandardCharsets.UTF_8));
                 }
 
                 int responseCode = conn.getResponseCode();
@@ -101,10 +98,11 @@ public class NvidiaApiService {
 
                     mainHandler.post(() -> callback.onSuccess(aiResponse));
                 } else {
-                    mainHandler.post(() -> callback.onFailure("AI Service Error: " + responseCode));
+                    mainHandler.post(() -> callback.onFailure("Service Code: " + responseCode));
                 }
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onFailure("Connection Failed: Network Error or Timeout"));
+                Log.e(TAG, "Nvidia API Error", e);
+                mainHandler.post(() -> callback.onFailure("Network Error or Timeout"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -112,6 +110,6 @@ public class NvidiaApiService {
     }
 
     public void sendMessage(String userMessage, ChatCallback callback) {
-        sendMessageStructured("No context provided.", new ArrayList<>(), userMessage, callback);
+        sendMessageStructured("No context", new ArrayList<>(), userMessage, callback);
     }
 }

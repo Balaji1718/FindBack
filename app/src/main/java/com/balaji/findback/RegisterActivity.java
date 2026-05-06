@@ -1,17 +1,15 @@
 package com.balaji.findback;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
-import android.util.Patterns;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.appcompat.widget.Toolbar;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -21,16 +19,12 @@ import java.util.Map;
 
 public class RegisterActivity extends BaseActivity {
 
-    EditText registerName, registerEmail, registerPassword, registerConfirmPassword;
-    Button registerButton;
-    TextView registerTitle;
-    View registerNameLayout, registerEmailLayout, registerPasswordLayout, registerConfirmPasswordLayout;
-    ProgressBar loadingProgress;
-    Toolbar toolbar;
-
-    FirebaseAuth mAuth;
+    EditText etName, etEmail, etPassword;
+    Button btnRegister;
+    ProgressBar progressBar;
+    TextView txtInstitution;
+    FirebaseAuth auth;
     FirebaseFirestore db;
-
     String institutionId;
 
     @Override
@@ -38,170 +32,96 @@ public class RegisterActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        setupToolbar("Register", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
+        
+        // Fetch institution name from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
+        String institutionName = prefs.getString("institutionName", "Unknown");
 
-        if (institutionId == null) {
-            Toast.makeText(this, "Institution not selected!", Toast.LENGTH_LONG).show();
-            finish();
-            return;
+        etName = findViewById(R.id.registerName);
+        etEmail = findViewById(R.id.registerEmail);
+        etPassword = findViewById(R.id.registerPassword);
+        btnRegister = findViewById(R.id.registerButton);
+        progressBar = findViewById(R.id.loadingProgress);
+        
+        // Use the common ID txtInstitution if available, otherwise find registerTitle 
+        // to set the institution context. In activity_register.xml, we have registerTitle.
+        TextView title = findViewById(R.id.registerTitle);
+        if (title != null) {
+            title.setText("Register for\n" + institutionName);
         }
 
-        mAuth = FirebaseAuth.getInstance();
+        auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        registerTitle = findViewById(R.id.registerTitle);
-        registerNameLayout = findViewById(R.id.registerNameLayout);
-        registerEmailLayout = findViewById(R.id.registerEmailLayout);
-        registerPasswordLayout = findViewById(R.id.registerPasswordLayout);
-        registerConfirmPasswordLayout = findViewById(R.id.registerConfirmPasswordLayout);
+        btnRegister.setOnClickListener(v -> registerUser());
 
-        registerName = findViewById(R.id.registerName);
-        registerEmail = findViewById(R.id.registerEmail);
-        registerPassword = findViewById(R.id.registerPassword);
-        registerConfirmPassword = findViewById(R.id.registerConfirmPassword);
-        registerButton = findViewById(R.id.registerButton);
-        loadingProgress = findViewById(R.id.loadingProgress);
-
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("Register");
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
-
-        startIntroAnimations();
-
-        registerButton.setOnClickListener(view -> registerUser());
+        // Ensure visibility
+        if (title != null) title.setAlpha(1f);
+        findViewById(R.id.registerNameLayout).setAlpha(1f);
+        findViewById(R.id.registerNameLayout).setTranslationY(0f);
+        findViewById(R.id.registerEmailLayout).setAlpha(1f);
+        findViewById(R.id.registerEmailLayout).setTranslationY(0f);
+        findViewById(R.id.registerPasswordLayout).setAlpha(1f);
+        findViewById(R.id.registerPasswordLayout).setTranslationY(0f);
+        findViewById(R.id.registerConfirmPasswordLayout).setAlpha(1f);
+        findViewById(R.id.registerConfirmPasswordLayout).setTranslationY(0f);
+        btnRegister.setAlpha(1f);
+        btnRegister.setTranslationY(0f);
     }
 
     @Override
     protected boolean shouldForceLightMode() {
-        return true; // Force light mode for entry screen
-    }
-
-    @Override
-    public boolean onSupportNavigateUp() {
-        onBackPressed();
-        return true;
-    }
-
-    private void startIntroAnimations() {
-        registerTitle.animate().alpha(1f).setDuration(800).start();
-        registerNameLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(100).start();
-        registerEmailLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(200).start();
-        registerPasswordLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(300).start();
-        registerConfirmPasswordLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(400).start();
-        registerButton.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(500).start();
+        return true; 
     }
 
     private void registerUser() {
+        String name = etName.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
 
-        String name = registerName.getText().toString().trim();
-        String email = registerEmail.getText().toString().trim();
-        String password = registerPassword.getText().toString().trim();
-        String confirmPassword = registerConfirmPassword.getText().toString().trim();
-
-        if (name.isEmpty()) {
-            registerName.setError("Name required");
-            return;
-        }
-
-        if (email.isEmpty()) {
-            registerEmail.setError("Email required");
-            return;
-        }
-
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            registerEmail.setError("Enter valid email");
+        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (password.length() < 6) {
-            registerPassword.setError("Minimum 6 characters required");
+            Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (!password.equals(confirmPassword)) {
-            registerConfirmPassword.setError("Passwords do not match");
-            return;
-        }
-
-        showLoading(true);
-
-        mAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener(task -> {
-
-                    if (task.isSuccessful()) {
-
-                        if (mAuth.getCurrentUser() == null) {
-                            showLoading(false);
-                            Toast.makeText(this, "User creation error", Toast.LENGTH_LONG).show();
-                            return;
-                        }
-
-                        String uid = mAuth.getCurrentUser().getUid();
-
-                        Map<String, Object> userData = new HashMap<>();
-                        userData.put("name", name);
-                        userData.put("email", email);
-                        userData.put("institutionId", institutionId);
-
-                        // default role for new user
-                        userData.put("role", "student");
-
-                        // required for admin control
-                        userData.put("status", "ACTIVE");
-
-                        db.collection("users")
-                                .document(uid)
-                                .set(userData)
-                                .addOnSuccessListener(unused -> {
-                                    showLoading(false);
-
-                                    Toast.makeText(this,
-                                            "Registration Successful",
-                                            Toast.LENGTH_SHORT).show();
-
-                                    Intent intent = new Intent(
-                                            RegisterActivity.this,
-                                            LoginActivity.class
-                                    );
-
-                                    intent.putExtra("institutionId", institutionId);
-                                    startActivity(intent);
-                                    finish();
-                                })
-                                .addOnFailureListener(e -> {
-                                    showLoading(false);
-                                    Toast.makeText(this,
-                                            "Firestore Error: " + e.getMessage(),
-                                            Toast.LENGTH_LONG).show();
-                                });
-
-                    } else {
-                        showLoading(false);
-
-                        Exception e = task.getException();
-
-                        Log.e("REGISTER_ERROR",
-                                e != null ? e.getMessage() : "Unknown error");
-
-                        Toast.makeText(this,
-                                "Registration Failed: " +
-                                        (e != null ? e.getMessage() : "Unknown error"),
-                                Toast.LENGTH_LONG).show();
-                    }
+        progressBar.setVisibility(View.VISIBLE);
+        auth.createUserWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> {
+                    saveUserToFirestore(authResult.getUser().getUid(), name, email, password);
+                })
+                .addOnFailureListener(e -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Registration Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
-    private void showLoading(boolean isLoading) {
-        if (loadingProgress != null) {
-            loadingProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
-        }
-        if (registerButton != null) {
-            registerButton.setEnabled(!isLoading);
-            registerButton.setAlpha(isLoading ? 0.5f : 1.0f);
-        }
+    private void saveUserToFirestore(String uid, String name, String email, String password) {
+        Map<String, Object> user = new HashMap<>();
+        user.put("name", name);
+        user.put("email", email);
+        user.put("password", password);
+        user.put("role", "user");
+        user.put("institutionId", institutionId);
+        user.put("status", "ACTIVE");
+
+        db.collection("users").document(uid)
+                .set(user)
+                .addOnSuccessListener(aVoid -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Registration Successful", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Data Save Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
 }

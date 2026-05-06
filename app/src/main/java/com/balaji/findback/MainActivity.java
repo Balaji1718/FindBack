@@ -78,11 +78,8 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-                if (isGranted) {
-                    Log.d(TAG, "Notification permission granted");
-                } else {
-                    Log.w(TAG, "Notification permission denied");
-                    Toast.makeText(this, "Enable notifications in settings to receive updates", Toast.LENGTH_LONG).show();
+                if (!isGranted) {
+                    Toast.makeText(this, "Enable notifications for live updates", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -92,8 +89,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         setContentView(R.layout.activity_main);
 
         setupToolbar("Campus Lost & Found", false);
-        setupAIButton();
-
+        
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -132,7 +128,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         itemAdapter.setOnItemActionListener(this);
 
         recyclerViewItems.setLayoutManager(new LinearLayoutManager(this));
-        recyclerViewItems.setHasFixedSize(true);
         recyclerViewItems.setAdapter(itemAdapter);
 
         setupFilters();
@@ -142,12 +137,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         setupBottomNavigation();
         askNotificationPermission();
 
-        FirebaseMessaging.getInstance().subscribeToTopic("test")
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d("FCM", "Subscribed to topic");
-                    }
-                });
+        FirebaseMessaging.getInstance().subscribeToTopic("test");
     }
 
     @Override
@@ -181,24 +171,18 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     private void updateTabsUI() {
         int activeColor = ContextCompat.getColor(this, R.color.purple_500);
         int inactiveColor = Color.TRANSPARENT;
-        
         int currentTheme = ThemeManager.getSavedTheme(this);
         int inactiveTextColor = (currentTheme == ThemeManager.DARK) ? Color.LTGRAY : Color.DKGRAY;
         int activeTextColor = Color.WHITE;
 
         btnOthers.setBackgroundColor(showMine ? inactiveColor : activeColor);
         btnOthers.setTextColor(showMine ? inactiveTextColor : activeTextColor);
-        
         btnMine.setBackgroundColor(showMine ? activeColor : inactiveColor);
         btnMine.setTextColor(showMine ? activeTextColor : inactiveTextColor);
     }
 
     @Override
     public void onReportClick(Item item) {
-        showReportDialog(item);
-    }
-
-    private void showReportDialog(Item item) {
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_report, null);
         Spinner spinner = view.findViewById(R.id.spinnerCategory);
         EditText etMessage = view.findViewById(R.id.etMessage);
@@ -227,7 +211,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     private void submitReport(Item item, String category, String message, AlertDialog dialog) {
         String userId = auth.getUid();
         if (userId == null) return;
-
         Map<String, Object> data = new HashMap<>();
         data.put("itemId", item.getId());
         data.put("itemTitle", item.getTitle());
@@ -332,11 +315,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     private void showLogoutConfirmation() {
         new AlertDialog.Builder(this).setTitle("Logout").setMessage("Logout?")
                 .setPositiveButton("Yes", (d, w) -> {
-                    SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
-                    editor.remove("institutionId");
-                    editor.remove("institutionName");
-                    editor.apply();
-
+                    getSharedPreferences("app", MODE_PRIVATE).edit().clear().apply();
                     auth.signOut();
                     Intent intent = new Intent(this, InstitutionSelectionActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -349,17 +328,19 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         String uid = auth.getUid();
         if (uid == null) return;
         
-        loadingProgress.setVisibility(View.VISIBLE);
-        
-        // Real-time user data to react to role or institution changes immediately
+        // 🔥 SIMULTANEOUS USE SECURITY:
+        // Automatically kicks out users if they are blocked by an admin in real-time.
         userListener = db.collection("users").document(uid)
                 .addSnapshotListener((doc, error) -> {
-                    if (error != null) {
-                        loadingProgress.setVisibility(View.GONE);
-                        return;
-                    }
+                    if (error != null) return;
                     
                     if (doc != null && doc.exists()) {
+                        String status = doc.getString("status");
+                        if ("BLOCKED".equalsIgnoreCase(status)) {
+                            handleInstantKickout();
+                            return;
+                        }
+
                         welcomeText.setText("Welcome, " + doc.getString("name"));
                         String newInstitutionId = doc.getString("institutionId");
                         
@@ -367,33 +348,34 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                             institutionId = newInstitutionId;
                             institutionText.setText("Institution: " + institutionId);
                             startItemsListener();
-                        } else {
-                            loadingProgress.setVisibility(View.GONE);
                         }
                     }
                 });
     }
 
+    private void handleInstantKickout() {
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Account Restricted")
+                .setMessage("Your account has been blocked by an administrator.")
+                .setCancelable(false)
+                .setPositiveButton("Logout", (d, w) -> {
+                    auth.signOut();
+                    startActivity(new Intent(this, InstitutionSelectionActivity.class));
+                    finish();
+                }).show();
+    }
+
     private void startItemsListener() {
-        if (institutionId == null) {
-            Log.e(TAG, "Cannot start items listener: institutionId is null");
-            return;
-        }
+        if (institutionId == null) return;
         if (itemsListener != null) itemsListener.remove();
 
         loadingProgress.setVisibility(View.VISIBLE);
-        emptyText.setVisibility(View.GONE);
-
-        Log.d(TAG, "Starting items listener for: " + institutionId);
-
         itemsListener = db.collection("items")
                 .whereEqualTo("institutionId", institutionId)
                 .addSnapshotListener((value, error) -> {
                     loadingProgress.setVisibility(View.GONE);
-                    if (error != null) {
-                        Log.e(TAG, "Error: " + error.getMessage());
-                        return;
-                    }
+                    if (error != null) return;
 
                     String currentUid = auth.getUid();
                     List<Item> newList = new ArrayList<>();
@@ -401,26 +383,17 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                     if (value != null) {
                         for (QueryDocumentSnapshot doc : value) {
                             Item item = doc.toObject(Item.class);
-                            if (item == null) continue;
+                            if (item == null || item.isHidden()) continue;
                             item.setId(doc.getId());
 
-                            if (item.isHidden()) continue;
-
                             if (showMine) {
-                                if (currentUid == null || !currentUid.equals(item.getPostedBy())) continue;
+                                if (!item.getPostedBy().equals(currentUid)) continue;
                             } else {
-                                if (currentUid != null && currentUid.equals(item.getPostedBy())) continue;
+                                if (item.getPostedBy().equals(currentUid)) continue;
                             }
 
-                            if (!selectedTypes.isEmpty()) {
-                                String type = item.getType();
-                                if (type == null || !selectedTypes.contains(type.toUpperCase())) continue;
-                            }
-
-                            if (!selectedStatuses.isEmpty()) {
-                                String status = item.getStatus();
-                                if (status == null || !selectedStatuses.contains(status.toUpperCase())) continue;
-                            }
+                            if (!selectedTypes.isEmpty() && !selectedTypes.contains(item.getType().toUpperCase())) continue;
+                            if (!selectedStatuses.isEmpty() && !selectedStatuses.contains(item.getStatus().toUpperCase())) continue;
 
                             newList.add(item);
                         }
@@ -432,31 +405,18 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                     });
 
                     itemAdapter.updateList(newList);
-                    
-                    String q = searchView.getQuery().toString();
-                    if (!q.isEmpty()) {
-                        itemAdapter.filter(q);
-                    }
-
                     updateEmptyState();
                 });
     }
 
     private void updateEmptyState() {
-        if (itemAdapter.getItemCount() == 0) {
-            emptyText.setVisibility(View.VISIBLE);
-            emptyText.setText("No data available");
-        } else {
-            emptyText.setVisibility(View.GONE);
-        }
+        emptyText.setVisibility(itemAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
     }
 
     private void setupSearch() {
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String q) { itemAdapter.filter(q); return false; }
-            @Override
-            public boolean onQueryTextChange(String q) { itemAdapter.filter(q); return false; }
+            @Override public boolean onQueryTextSubmit(String q) { itemAdapter.filter(q); return false; }
+            @Override public boolean onQueryTextChange(String q) { itemAdapter.filter(q); return false; }
         });
     }
 

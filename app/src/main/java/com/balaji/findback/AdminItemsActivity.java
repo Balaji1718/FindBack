@@ -33,7 +33,7 @@ public class AdminItemsActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_items);
 
-        setupToolbar("", true);
+        setupToolbar("Institution Items", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
 
@@ -55,20 +55,15 @@ public class AdminItemsActivity extends BaseActivity {
     private void startListeningItems() {
         if (institutionId == null) return;
 
-        loadingProgress.setVisibility(View.VISIBLE);
-        emptyText.setVisibility(View.GONE);
+        showLoading();
 
-        // Real-time updates with SnapshotListener
         itemListener = db.collection("items")
                 .whereEqualTo("institutionId", institutionId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .addSnapshotListener((value, error) -> {
-                    loadingProgress.setVisibility(View.GONE);
-                    
                     if (error != null) {
                         Log.e("ADMIN_ITEMS", "Listen failed: " + error.getMessage());
-                        emptyText.setVisibility(View.VISIBLE);
-                        emptyText.setText("Error: " + error.getMessage());
+                        showError("Failed to load items. Tap Retry.");
                         return;
                     }
 
@@ -84,16 +79,42 @@ public class AdminItemsActivity extends BaseActivity {
                     }
 
                     if (itemList.isEmpty()) {
-                        emptyText.setVisibility(View.VISIBLE);
-                        emptyText.setText("No items found for this institution.");
-                        recyclerView.setVisibility(View.GONE);
+                        showEmpty("No items found for this institution.");
                     } else {
-                        emptyText.setVisibility(View.GONE);
-                        recyclerView.setVisibility(View.VISIBLE);
+                        showData();
                     }
 
                     adapter.notifyDataSetChanged();
                 });
+    }
+
+    private void showLoading() {
+        loadingProgress.setVisibility(View.VISIBLE);
+        emptyText.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.GONE);
+    }
+
+    private void showData() {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setVisibility(View.GONE);
+        emptyText.setText("");
+        recyclerView.setVisibility(View.VISIBLE);
+    }
+
+    private void showEmpty(String message) {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setText(message);
+        emptyText.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.GONE);
+    }
+
+    private void showError(String message) {
+        loadingProgress.setVisibility(View.GONE);
+        if (itemList.isEmpty()) {
+            emptyText.setText(message);
+            emptyText.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.GONE);
+        }
     }
 
     @Override

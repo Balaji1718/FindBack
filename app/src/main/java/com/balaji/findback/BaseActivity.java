@@ -1,13 +1,7 @@
 package com.balaji.findback;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -17,9 +11,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
-import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,14 +28,18 @@ public class BaseActivity extends AppCompatActivity {
     protected View aiButton;
     protected String userRole = "user"; // Default
     private static boolean isFirstLaunch = true;
-    
-    // Static variables for transition
-    private static Bitmap mOldBitmap = null;
-    private static boolean mIsTransitioning = false;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        ThemeManager.applyTheme(this);
+        // Instant Mode Switch: Apply theme per-activity to keep entry pages light
+        if (shouldForceLightMode()) {
+            getDelegate().setLocalNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        } else {
+            int savedTheme = ThemeManager.getSavedTheme(this);
+            getDelegate().setLocalNightMode(savedTheme == ThemeManager.DARK ? 
+                AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+        }
+        
         super.onCreate(savedInstanceState);
 
         if (isFirstLaunch) {
@@ -55,58 +51,14 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public void setContentView(int layoutResID) {
         super.setContentView(layoutResID);
-        // Start "Spatial Depth Zoom" transition if triggered
-        if (mIsTransitioning && mOldBitmap != null) {
-            performSpatialZoomTransition();
-        }
-    }
-
-    private void performSpatialZoomTransition() {
-        final ViewGroup root = (ViewGroup) getWindow().getDecorView();
         
-        // 1. Prepare the OLD screen overlay
-        final ImageView oldOverlay = new ImageView(this);
-        oldOverlay.setImageBitmap(mOldBitmap);
-        oldOverlay.setScaleType(ImageView.ScaleType.FIT_XY);
-        root.addView(oldOverlay, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 
-                ViewGroup.LayoutParams.MATCH_PARENT));
-
-        mIsTransitioning = false;
-
-        // 2. Prepare the NEW screen (root content)
-        // We find the main content view (usually the first child of root that isn't the overlay)
-        final View newContentView = root.getChildAt(0); 
-
-        oldOverlay.post(() -> {
-            // Animation for OLD screen: Scale UP and Fade OUT
-            ObjectAnimator oldScaleX = ObjectAnimator.ofFloat(oldOverlay, View.SCALE_X, 1f, 1.2f);
-            ObjectAnimator oldScaleY = ObjectAnimator.ofFloat(oldOverlay, View.SCALE_Y, 1f, 1.2f);
-            ObjectAnimator oldAlpha = ObjectAnimator.ofFloat(oldOverlay, View.ALPHA, 1f, 0f);
-
-            // Animation for NEW screen: Scale UP from 0.8 to 1.0 and Fade IN
-            newContentView.setScaleX(0.8f);
-            newContentView.setScaleY(0.8f);
-            newContentView.setAlpha(0f);
-            
-            ObjectAnimator newScaleX = ObjectAnimator.ofFloat(newContentView, View.SCALE_X, 0.8f, 1f);
-            ObjectAnimator newScaleY = ObjectAnimator.ofFloat(newContentView, View.SCALE_Y, 0.8f, 1f);
-            ObjectAnimator newAlpha = ObjectAnimator.ofFloat(newContentView, View.ALPHA, 0f, 1f);
-
-            AnimatorSet set = new AnimatorSet();
-            set.playTogether(oldScaleX, oldScaleY, oldAlpha, newScaleX, newScaleY, newAlpha);
-            set.setDuration(600);
-            set.setInterpolator(new AccelerateDecelerateInterpolator());
-            
-            set.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    root.removeView(oldOverlay);
-                    mOldBitmap = null;
-                }
-            });
-            set.start();
-        });
+        // AUTO-INIT AI BUTTON: 
+        // We automatically setup the AI button for all screens EXCEPT:
+        // 1. Screens forced to Light Mode (Entering Pages)
+        // 2. The AI Chat screen itself
+        if (!shouldForceLightMode() && !(this instanceof AiChatActivity)) {
+            setupAIButton();
+        }
     }
 
     private void resetAiButtonPosition() {
@@ -160,14 +112,6 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     protected void toggleTheme() {
-        // Capture snapshot
-        View rootView = getWindow().getDecorView();
-        mOldBitmap = Bitmap.createBitmap(rootView.getWidth(), rootView.getHeight(), Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(mOldBitmap);
-        rootView.draw(canvas);
-        
-        mIsTransitioning = true;
-
         int currentTheme = ThemeManager.getSavedTheme(this);
         int newTheme = (currentTheme == ThemeManager.LIGHT) ? ThemeManager.DARK : ThemeManager.LIGHT;
         ThemeManager.setTheme(this, newTheme);
@@ -177,13 +121,13 @@ public class BaseActivity extends AppCompatActivity {
         finish();
         overridePendingTransition(0, 0);
         startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 
     protected void setupAIButton() {
         if (aiButton != null) return;
 
         aiButton = LayoutInflater.from(this).inflate(R.layout.view_ai_button, null);
-        aiButton.setVisibility(View.INVISIBLE);
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -302,10 +246,6 @@ public class BaseActivity extends AppCompatActivity {
             aiButton.setX(parent.getWidth() - aiButton.getWidth() - 80);
             aiButton.setY(parent.getHeight() * 0.78f - (aiButton.getHeight() / 2f));
         }
-
-        aiButton.setAlpha(0f);
-        aiButton.setVisibility(View.VISIBLE);
-        aiButton.animate().alpha(1f).setDuration(300).start();
     }
 
     private void saveAiButtonPosition(float x, float y) {

@@ -19,6 +19,7 @@ import java.util.List;
 
 public class AdminUsersActivity extends BaseActivity {
 
+    private static final String TAG = "ADMIN_USERS";
     FirebaseFirestore db;
     String institutionId;
     TextView userCount, emptyText;
@@ -33,7 +34,7 @@ public class AdminUsersActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_users);
 
-        setupToolbar("", true);
+        setupToolbar("Institution Users", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
 
@@ -55,23 +56,18 @@ public class AdminUsersActivity extends BaseActivity {
 
     private void startListeningUsers() {
         if (institutionId == null) {
-            emptyText.setVisibility(View.VISIBLE);
-            emptyText.setText("No institution ID provided");
+            showEmpty("No institution ID provided");
             return;
         }
 
-        loadingProgress.setVisibility(View.VISIBLE);
+        showLoading();
         
-        // Remove role filter to show ALL users in the institution, 
-        // including admins if they belong to this institutionId.
-        // Also added real-time updates via addSnapshotListener
         userListener = db.collection("users")
                 .whereEqualTo("institutionId", institutionId)
                 .addSnapshotListener((value, error) -> {
-                    loadingProgress.setVisibility(View.GONE);
-                    
                     if (error != null) {
-                        Log.e("ADMIN_USERS", "Listen failed: " + error.getMessage());
+                        Log.e(TAG, "Listen failed: " + error.getMessage());
+                        showError("Failed to load users.");
                         return;
                     }
 
@@ -86,24 +82,48 @@ public class AdminUsersActivity extends BaseActivity {
                         }
                     }
 
-                    updateUI();
+                    if (userList.isEmpty()) {
+                        showEmpty("No users found for this institution");
+                    } else {
+                        showData();
+                    }
+
+                    adapter.notifyDataSetChanged();
                 });
     }
 
-    private void updateUI() {
-        int count = userList.size();
-        userCount.setText("Total Users: " + count);
+    private void showLoading() {
+        loadingProgress.setVisibility(View.VISIBLE);
+        emptyText.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.GONE);
+        userCount.setVisibility(View.GONE);
+    }
 
+    private void showData() {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setVisibility(View.GONE);
+        emptyText.setText("");
+        recyclerView.setVisibility(View.VISIBLE);
+        userCount.setVisibility(View.VISIBLE);
+        userCount.setText("Total Users: " + userList.size());
+    }
+
+    private void showEmpty(String message) {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setText(message);
+        emptyText.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.GONE);
+        userCount.setVisibility(View.VISIBLE);
+        userCount.setText("Total Users: 0");
+    }
+
+    private void showError(String message) {
+        loadingProgress.setVisibility(View.GONE);
         if (userList.isEmpty()) {
+            emptyText.setText(message);
             emptyText.setVisibility(View.VISIBLE);
-            emptyText.setText("No users found for this institution");
             recyclerView.setVisibility(View.GONE);
-        } else {
-            emptyText.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
         }
-
-        adapter.notifyDataSetChanged();
     }
 
     @Override

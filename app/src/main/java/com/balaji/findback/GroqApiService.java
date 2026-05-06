@@ -30,15 +30,21 @@ public class GroqApiService {
     }
 
     public void sendMessage(String context, List<ChatMessage> history, String userPrompt, ChatCallback callback) {
+        String apiKey = ApiConfig.getApiKey(BuildConfig.GROQ_API_KEY, ApiConfig.GROQ_API_KEY);
+        if (apiKey == null) {
+            mainHandler.post(() -> callback.onFailure("GROQ API Key missing"));
+            return;
+        }
+
         executorService.execute(() -> {
             try {
                 URL url = new URL(API_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + BuildConfig.GROQ_API_KEY);
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000); // Fast timeout for Groq
+                conn.setConnectTimeout(15000);
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", MODEL);

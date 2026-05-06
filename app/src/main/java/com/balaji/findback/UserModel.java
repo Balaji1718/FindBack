@@ -4,11 +4,12 @@ public class UserModel {
     private String uid;
     private String name;
     private String email;
-    private String password; // Added for admin management
-    private String contactInfo; // Added for contact info
+    private String password;
+    private String contactInfo;
     private String role;
     private String institutionId;
-    private String status; // ACTIVE or BLOCKED
+    private String status; 
+    private String fcmToken; // Added to fix Logcat warnings and support notifications
 
     public UserModel() {}
 
@@ -35,4 +36,7 @@ public class UserModel {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }

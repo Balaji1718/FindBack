@@ -3,7 +3,7 @@ package com.balaji.findback;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Patterns;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -11,67 +11,61 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.widget.Toolbar;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.messaging.FirebaseMessaging;
 
 public class LoginActivity extends BaseActivity {
 
-    EditText emailEditText, passwordEditText;
-    Button loginButton;
-    TextView goToRegister, loginTitle, txtInstitution;
-    View emailInputLayout, passwordInputLayout;
-    ProgressBar loadingProgress;
-    Toolbar toolbar;
-
-    FirebaseAuth mAuth;
-    FirebaseFirestore db;
-
-    String selectedInstitutionId;
+    EditText etEmail, etPassword;
+    Button btnLogin;
+    TextView btnGoRegister, txtInstitution;
+    ProgressBar progressBar;
+    FirebaseAuth auth;
+    String institutionId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        selectedInstitutionId = getIntent().getStringExtra("institutionId");
+        setupToolbar("Login", true);
 
-        toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        institutionId = getIntent().getStringExtra("institutionId");
+        
+        // Fetch institution name from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
+        String institutionName = prefs.getString("institutionName", "Unknown");
 
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("Login");
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        etEmail = findViewById(R.id.emailEditText);
+        etPassword = findViewById(R.id.passwordEditText);
+        btnLogin = findViewById(R.id.loginButton);
+        btnGoRegister = findViewById(R.id.goToRegister);
+        txtInstitution = findViewById(R.id.txtInstitution);
+        progressBar = findViewById(R.id.loadingProgress);
+
+        if (txtInstitution != null) {
+            txtInstitution.setText("Logging into: " + institutionName);
         }
 
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
+        auth = FirebaseAuth.getInstance();
 
-        loginTitle = findViewById(R.id.loginTitle);
-        txtInstitution = findViewById(R.id.txtInstitution);
-        emailInputLayout = findViewById(R.id.emailInputLayout);
-        passwordInputLayout = findViewById(R.id.passwordInputLayout);
-        emailEditText = findViewById(R.id.emailEditText);
-        passwordEditText = findViewById(R.id.passwordEditText);
-        loginButton = findViewById(R.id.loginButton);
-        goToRegister = findViewById(R.id.goToRegister);
-        loadingProgress = findViewById(R.id.loadingProgress);
-
-        SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
-        String name = prefs.getString("institutionName", "Unknown");
-        txtInstitution.setText("Logging into: " + name);
-
-        startIntroAnimations();
-
-        loginButton.setOnClickListener(v -> loginUser());
-
-        goToRegister.setOnClickListener(v -> {
+        btnLogin.setOnClickListener(v -> loginUser());
+        btnGoRegister.setOnClickListener(v -> {
             Intent intent = new Intent(this, RegisterActivity.class);
-            intent.putExtra("institutionId", selectedInstitutionId);
+            intent.putExtra("institutionId", institutionId);
             startActivity(intent);
         });
+
+        // Ensure UI elements are visible
+        findViewById(R.id.loginTitle).setAlpha(1f);
+        if (txtInstitution != null) txtInstitution.setAlpha(1f);
+        findViewById(R.id.emailInputLayout).setAlpha(1f);
+        findViewById(R.id.emailInputLayout).setTranslationY(0f);
+        findViewById(R.id.passwordInputLayout).setAlpha(1f);
+        findViewById(R.id.passwordInputLayout).setTranslationY(0f);
+        btnLogin.setAlpha(1f);
+        btnLogin.setTranslationY(0f);
+        btnGoRegister.setAlpha(1f);
     }
 
     @Override
@@ -79,137 +73,52 @@ public class LoginActivity extends BaseActivity {
         return true; 
     }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        onBackPressed();
-        return true;
-    }
-
-    private void startIntroAnimations() {
-        loginTitle.animate().alpha(1f).setDuration(800).start();
-        txtInstitution.animate().alpha(1f).setDuration(800).setStartDelay(100).start();
-        emailInputLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(200).start();
-        passwordInputLayout.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(400).start();
-        loginButton.animate().alpha(1f).translationY(0).setDuration(800).setStartDelay(600).start();
-        goToRegister.animate().alpha(1f).setDuration(800).setStartDelay(800).start();
-    }
-
     private void loginUser() {
-        String email = emailEditText.getText().toString().trim();
-        String password = passwordEditText.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
 
-        if (email.isEmpty()) {
-            emailEditText.setError("Email required");
+        if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "Fields cannot be empty", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailEditText.setError("Enter valid email");
-            return;
-        }
-
-        if (password.isEmpty()) {
-            passwordEditText.setError("Password required");
-            return;
-        }
-
-        showLoading(true);
-
-        mAuth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        if(mAuth.getCurrentUser() == null) {
-                            showLoading(false);
-                            return;
-                        }
-
-                        String uid = mAuth.getCurrentUser().getUid();
-
-                        db.collection("users")
-                                .document(uid)
-                                .get()
-                                .addOnSuccessListener(document -> {
-                                    if (!document.exists()) {
-                                        showLoading(false);
-                                        mAuth.signOut();
-                                        Toast.makeText(this,"User data not found",Toast.LENGTH_LONG).show();
-                                        return;
-                                    }
-
-                                    String userInstitutionId = document.getString("institutionId");
-                                    
-                                    if (selectedInstitutionId != null && !selectedInstitutionId.equals(userInstitutionId)) {
-                                        showLoading(false);
-                                        mAuth.signOut();
-                                        Toast.makeText(this, 
-                                            "Access Denied: You are not registered with this institution.", 
-                                            Toast.LENGTH_LONG).show();
-                                        return;
-                                    }
-
-                                    // ✅ SAVE TO SHARED PREFS FOR SYSTEM-WIDE CONSISTENCY
-                                    SharedPreferences.Editor editor = getSharedPreferences("app", MODE_PRIVATE).edit();
-                                    editor.putString("institutionId", userInstitutionId);
-                                    editor.apply();
-
-                                    String role = document.getString("role");
-                                    String status = document.getString("status");
-
-                                    if ("BLOCKED".equals(status)) {
-                                        mAuth.signOut();
-                                        showLoading(false);
-                                        Toast.makeText(this,
-                                                "Your account has been blocked by admin.",
-                                                Toast.LENGTH_LONG).show();
-                                        return;
-                                    }
-
-                                    saveFCMToken(uid);
-
-                                    if ("admin".equals(role)) {
-                                        Intent intent = new Intent(this, AdminDashboardActivity.class);
-                                        intent.putExtra("institutionId", userInstitutionId);
-                                        startActivity(intent);
-                                    } else {
-                                        Intent intent = new Intent(this, MainActivity.class);
-                                        intent.putExtra("institutionId", userInstitutionId);
-                                        startActivity(intent);
-                                    }
-
-                                    finish();
-                                })
-                                .addOnFailureListener(e -> {
-                                    showLoading(false);
-                                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                });
-
-                    } else {
-                        showLoading(false);
-                        Toast.makeText(this,
-                                "Login Failed: " + task.getException().getMessage(),
-                                Toast.LENGTH_LONG).show();
-                    }
+        progressBar.setVisibility(View.VISIBLE);
+        auth.signInWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> {
+                    checkUserRole(authResult.getUser().getUid());
+                })
+                .addOnFailureListener(e -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Login Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
-    private void showLoading(boolean isLoading) {
-        if (loadingProgress != null) {
-            loadingProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
-        }
-        if (loginButton != null) {
-            loginButton.setEnabled(!isLoading);
-            loginButton.setAlpha(isLoading ? 0.5f : 1.0f);
-        }
-    }
+    private void checkUserRole(String uid) {
+        FirebaseFirestore.getInstance().collection("users").document(uid)
+                .get()
+                .addOnSuccessListener(document -> {
+                    progressBar.setVisibility(View.GONE);
+                    if (document.exists()) {
+                        String role = document.getString("role");
+                        String userInstId = document.getString("institutionId");
 
-    private void saveFCMToken(String userId) {
-        FirebaseMessaging.getInstance().getToken()
-                .addOnCompleteListener(task -> {
-                    if (!task.isSuccessful()) return;
-                    String token = task.getResult();
-                    db.collection("users")
-                            .document(userId)
-                            .update("fcmToken", token);
+                        if (institutionId != null && !institutionId.equals(userInstId)) {
+                            auth.signOut();
+                            Toast.makeText(this, "Unauthorized: This account belongs to another institution", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        Intent intent;
+                        if ("admin".equals(role)) {
+                            intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
+                        } else {
+                            intent = new Intent(LoginActivity.this, MainActivity.class);
+                        }
+                        intent.putExtra("institutionId", userInstId);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        finish();
+                    }
                 });
     }
 }

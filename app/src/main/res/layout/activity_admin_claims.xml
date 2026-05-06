@@ -14,58 +14,40 @@
         app:titleTextColor="@android:color/white"
         app:navigationIconTint="@android:color/white" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <TextView
-            android:id="@+id/claimsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Institution Claims"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
-            android:layout_marginTop="16dp"
-            android:layout_marginStart="16dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"/>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/adminClaimsRecycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="4dp"
+            android:paddingTop="8dp"
+            android:clipToPadding="false"
+            android:background="?attr/colorSurface"
+            android:visibility="gone"/>
 
-        <!-- Loading Indicator -->
+        <!-- Overlay Layers -->
         <ProgressBar
             android:id="@+id/loadingProgress"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_gravity="center"
+            android:visibility="gone"/>
 
-        <!-- Empty Message -->
         <TextView
             android:id="@+id/emptyText"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="No claims requested yet."
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="32dp"
+            android:text=""
             android:textSize="16sp"
             android:textColor="?attr/colorOutline"
+            android:gravity="center"
             android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:background="?attr/colorSurface"/>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/adminClaimsRecycler"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:padding="10dp"
-            android:clipToPadding="false"
-            app:layout_constraintTop_toBottomOf="@id/claimsTitle"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
 </LinearLayout>

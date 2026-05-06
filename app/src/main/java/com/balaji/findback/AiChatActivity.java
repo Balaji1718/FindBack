@@ -215,7 +215,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         if (auth.getCurrentUser() == null) return;
         String uid = auth.getUid();
 
-        // Load local cache first for speed
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         Gson gson = new Gson();
         String sessionsJson = prefs.getString(KEY_SESSIONS + "_" + uid, null);
@@ -235,8 +234,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         }
 
         updateHistoryUI();
-        
-        // Sync with Firestore in background for cross-device support
         syncFromFirestore(uid);
     }
 
@@ -252,7 +249,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                         ChatSession session = doc.toObject(ChatSession.class);
                         if (session != null) {
                             sessionList.add(session);
-                            // Load messages for each session from subcollection
                             loadMessagesFromFirestore(uid, session.getSessionId());
                         }
                     }
@@ -299,7 +295,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
 
         saveLocalCache();
 
-        // Sync specific session to Firestore
         ChatSession targetSession = null;
         for (ChatSession s : sessionList) {
             if (s.getSessionId().equals(sessionId)) {
@@ -312,13 +307,11 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
             db.collection("users").document(uid).collection("chat_sessions")
                     .document(sessionId).set(targetSession);
             
-            // Sync messages
             List<ChatMessage> messages = chatHistoryMap.get(sessionId);
             if (messages != null) {
                 WriteBatch batch = db.batch();
                 for (int i = 0; i < messages.size(); i++) {
                     ChatMessage m = messages.get(i);
-                    // Use index or timestamp as ID to ensure order and avoid duplicates
                     batch.set(db.collection("users").document(uid).collection("chat_sessions")
                             .document(sessionId).collection("messages").document(String.valueOf(i)), m);
                 }
@@ -399,13 +392,10 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                         sessionList.remove(toRemove);
                         chatHistoryMap.remove(id);
                         if (id.equals(currentSessionId)) startNewChat();
-                        
-                        // Delete from Firestore
                         String uid = FirebaseAuth.getInstance().getUid();
                         if (uid != null) {
                             db.collection("users").document(uid).collection("chat_sessions").document(id).delete();
                         }
-                        
                         updateHistoryUI();
                         saveLocalCache();
                     }
@@ -454,9 +444,22 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
 
         String finalInstId = institutionId != null ? institutionId : "default";
 
+        // 🔥 RELEASE FIX: If Firestore takes more than 3 seconds, proceed with partial context 
+        // to prevent App Check from hanging the AI assistant.
+        final boolean[] contextLoaded = {false};
+        new android.os.Handler().postDelayed(() -> {
+            if (!contextLoaded[0]) {
+                contextLoaded[0] = true;
+                callNvidia("Offline/Cached Mode", requestSessionId, text);
+            }
+        }, 3000);
+
         InstitutionContextProvider.load(finalInstId, context -> {
-            String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
-            callNvidia(roleContext, requestSessionId, text);
+            if (!contextLoaded[0]) {
+                contextLoaded[0] = true;
+                String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
+                callNvidia(roleContext, requestSessionId, text);
+            }
         });
     }
 
@@ -507,7 +510,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
             @Override public void onFailure(String error) { 
                 if (sessionId.equals(currentSessionId)) {
                     chatAdapter.removeLoadingMessage();
-                    Toast.makeText(AiChatActivity.this, "All AI services failed. Please try again later.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(AiChatActivity.this, "All AI services failed. Check internet.", Toast.LENGTH_LONG).show();
                 }
             }
         });

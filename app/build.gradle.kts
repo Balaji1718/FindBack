@@ -21,24 +21,65 @@ android {
         // Load local.properties
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
+
         if (localPropertiesFile.exists()) {
             localProperties.load(localPropertiesFile.inputStream())
         }
 
-        // Define BuildConfig fields
-        buildConfigField("String", "GROQ_API_KEY", "\"${localProperties.getProperty("GROQ_API_KEY") ?: ""}\"")
-        buildConfigField("String", "COHERE_API_KEY", "\"${localProperties.getProperty("COHERE_API_KEY") ?: ""}\"")
-        buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY") ?: ""}\"")
-        buildConfigField("String", "NVIDIA_API_KEY", "\"${localProperties.getProperty("NVIDIA_API_KEY") ?: ""}\"")
+        // API Keys from local.properties
+        buildConfigField(
+            "String",
+            "GROQ_API_KEY",
+            "\"${localProperties.getProperty("GROQ_API_KEY") ?: ""}\""
+        )
+
+        buildConfigField(
+            "String",
+            "COHERE_API_KEY",
+            "\"${localProperties.getProperty("COHERE_API_KEY") ?: ""}\""
+        )
+
+        buildConfigField(
+            "String",
+            "OPENROUTER_API_KEY",
+            "\"${localProperties.getProperty("OPENROUTER_API_KEY") ?: ""}\""
+        )
+
+        buildConfigField(
+            "String",
+            "NVIDIA_API_KEY",
+            "\"${localProperties.getProperty("NVIDIA_API_KEY") ?: ""}\""
+        )
+    }
+
+    // 🔐 Release Signing Configuration
+    signingConfigs {
+        create("release") {
+            storeFile = file("findback-key.jks")
+
+            // Replace with your actual values
+            storePassword = "1810@Google"
+            keyAlias = "findback"
+            keyPassword = "1810@Google"
+        }
     }
 
     buildTypes {
+
         release {
             isMinifyEnabled = false
+
+            // Connect Release Keystore
+            signingConfig = signingConfigs.getByName("release")
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+
+        debug {
+            isDebuggable = true
         }
     }
 
@@ -53,6 +94,7 @@ android {
 }
 
 dependencies {
+
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -61,25 +103,27 @@ dependencies {
     // 🔥 Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
 
+    // Firebase Services
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
 
-    // 🔥 App Check
+    // 🔐 Firebase App Check
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-appcheck-debug")
 
-    // 🔥 Image Loading
+    // 🖼️ Image Loading
     implementation("com.github.bumptech.glide:glide:4.16.0")
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
 
-    // 🎨 Lottie Animation
+    // 🎨 Lottie Animations
     implementation("com.airbnb.android:lottie:6.0.0")
 
     // 📦 JSON Parsing
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

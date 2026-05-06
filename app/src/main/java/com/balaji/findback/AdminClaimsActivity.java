@@ -19,6 +19,7 @@ import java.util.List;
 
 public class AdminClaimsActivity extends BaseActivity {
 
+    private static final String TAG = "ADMIN_CLAIMS";
     RecyclerView recyclerView;
     TextView emptyText;
     ProgressBar loadingProgress;
@@ -33,7 +34,7 @@ public class AdminClaimsActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_claims);
 
-        setupToolbar("", true);
+        setupToolbar("Institution Claims", true);
 
         institutionId = getIntent().getStringExtra("institutionId");
 
@@ -54,20 +55,21 @@ public class AdminClaimsActivity extends BaseActivity {
     private void startListeningClaims() {
         if (institutionId == null) return;
 
-        loadingProgress.setVisibility(View.VISIBLE);
-        emptyText.setVisibility(View.GONE);
+        showLoading();
 
-        // Real-time updates with SnapshotListener
+        // Optimized real-time listener
         claimsListener = db.collection("claims")
                 .whereEqualTo("institutionId", institutionId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .addSnapshotListener((value, error) -> {
-                    loadingProgress.setVisibility(View.GONE);
-                    
                     if (error != null) {
-                        Log.e("ADMIN_CLAIMS", "Listen failed: " + error.getMessage());
-                        emptyText.setVisibility(View.VISIBLE);
-                        emptyText.setText("Error: " + error.getMessage());
+                        Log.e(TAG, "Listen failed: " + error.getMessage());
+                        // If it's an index error, don't show the technical message to the user
+                        if (error.getMessage() != null && error.getMessage().contains("index")) {
+                            showError("Setting up database indexing. Please wait a moment...");
+                        } else {
+                            showError("Failed to load claims. Please try again.");
+                        }
                         return;
                     }
 
@@ -83,16 +85,45 @@ public class AdminClaimsActivity extends BaseActivity {
                     }
 
                     if (claimList.isEmpty()) {
-                        emptyText.setVisibility(View.VISIBLE);
-                        emptyText.setText("No claims requested yet.");
-                        recyclerView.setVisibility(View.GONE);
+                        showEmpty("No claims available for this institution.");
                     } else {
-                        emptyText.setVisibility(View.GONE);
-                        recyclerView.setVisibility(View.VISIBLE);
+                        showData();
                     }
 
                     adapter.notifyDataSetChanged();
                 });
+    }
+
+    private void showLoading() {
+        loadingProgress.setVisibility(View.VISIBLE);
+        emptyText.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.GONE);
+    }
+
+    private void showData() {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setVisibility(View.GONE);
+        emptyText.setText(""); // Wipe technical error messages
+        recyclerView.setVisibility(View.VISIBLE);
+    }
+
+    private void showEmpty(String message) {
+        loadingProgress.setVisibility(View.GONE);
+        emptyText.setText(message);
+        emptyText.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.GONE);
+    }
+
+    private void showError(String message) {
+        loadingProgress.setVisibility(View.GONE);
+        // Only show error text if list is empty to prevent peeking behind cards
+        if (claimList.isEmpty()) {
+            emptyText.setText(message);
+            emptyText.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.GONE);
+        } else {
+            emptyText.setVisibility(View.GONE);
+        }
     }
 
     @Override

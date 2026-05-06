@@ -1,30 +1,34 @@
-# Firebase ProGuard Rules
--keep class com.google.firebase.** { *; }
--keep interface com.google.firebase.** { *; }
+# Definitive ProGuard Rules for FindBack
 
-# Keep AI related models for GSON/JSON parsing
--keep class com.balaji.findback.ChatMessage { *; }
--keep class com.balaji.findback.ChatSession { *; }
--keep class com.balaji.findback.UserModel { *; }
--keep class com.balaji.findback.Item { *; }
--keep class com.balaji.findback.Claim { *; }
--keep class com.balaji.findback.NotificationModel { *; }
+# 1. Keep EVERYTHING in our package to prevent renaming/stripping
+# This is the safest way to ensure release APK works exactly like debug
+-keep class com.balaji.findback.** { *; }
+-keep interface com.balaji.findback.** { *; }
+-keepclassmembers class com.balaji.findback.** { *; }
 
-# GSON rules to prevent field renaming
--keepattributes Signature
--keepattributes *Annotation*
--keep class sun.misc.Unsafe { *; }
--keep class com.google.gson.stream.** { *; }
--keep class com.balaji.findback.** { <fields>; }
-
-# Keep BuildConfig to ensure API keys are accessible
+# 2. Keep BuildConfig strictly to ensure API Keys are never stripped or inlined incorrectly
 -keep class com.balaji.findback.BuildConfig { *; }
 
-# Prevent shrinking of JSON response classes in NVIDIA/GROQ services
--keepclassmembers class * {
-  @com.google.gson.annotations.SerializedName <fields>;
-}
+# 3. Firebase & Play Services
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
 
-# General project-wide keep rules for stability
--keep class com.balaji.findback.** { *; }
--dontwarn com.balaji.findback.**
+# 4. GSON Rules (Required for Chat History persistence)
+-keepattributes Signature, *Annotation*, EnclosingMethod
+-keep class com.google.gson.** { *; }
+-keep class sun.misc.Unsafe { *; }
+-keep class com.google.gson.reflect.TypeToken
+-keep class * extends com.google.gson.reflect.TypeToken
+-keep class * implements com.google.gson.TypeAdapterFactory
+
+# 5. Glide & Lottie (UI stability)
+-keep class com.github.bumptech.glide.** { *; }
+-keep class com.airbnb.lottie.** { *; }
+
+# 6. General Stability
+-dontoptimize
+-dontobfuscate
+-keepattributes SourceFile, LineNumberTable
+-keep class org.json.** { *; }

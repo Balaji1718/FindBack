@@ -2,6 +2,7 @@ package com.balaji.findback;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 
 public class OpenRouterApiService {
 
+    private static final String TAG = "OpenRouterAI";
     private static final String API_URL = "https://openrouter.ai/api/v1/chat/completions";
     private static final String MODEL = "google/gemini-2.0-flash-001";
     
@@ -30,13 +32,19 @@ public class OpenRouterApiService {
     }
 
     public void sendMessage(String context, List<ChatMessage> history, String userPrompt, ChatCallback callback) {
+        String apiKey = ApiConfig.getApiKey(BuildConfig.OPENROUTER_API_KEY, ApiConfig.OPENROUTER_API_KEY);
+        if (apiKey == null) {
+            mainHandler.post(() -> callback.onFailure("OpenRouter API Key missing"));
+            return;
+        }
+
         executorService.execute(() -> {
             try {
                 URL url = new URL(API_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + BuildConfig.OPENROUTER_API_KEY);
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setRequestProperty("HTTP-Referer", "https://github.com/balaji/findback"); 
                 conn.setRequestProperty("X-Title", "FindBack App");
                 conn.setDoOutput(true);
@@ -79,6 +87,7 @@ public class OpenRouterApiService {
                     mainHandler.post(() -> callback.onFailure("OpenRouter Error: " + responseCode));
                 }
             } catch (Exception e) {
+                Log.e(TAG, "Exception", e);
                 mainHandler.post(() -> callback.onFailure(e.getMessage()));
             }
         });
