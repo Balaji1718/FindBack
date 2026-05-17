@@ -12,21 +12,29 @@ public class ThemeManager {
     public static final int LIGHT = 0;
     public static final int DARK = 1;
 
-    public static void applyTheme(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        int theme = prefs.getInt(KEY_THEME, LIGHT); // Default to Light
-
-        if (theme == DARK) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-        } else {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+    /**
+     * Applies theme per-activity using setLocalNightMode for instant, flicker-free switching.
+     */
+    public static void applyThemeToActivity(androidx.appcompat.app.AppCompatActivity activity) {
+        int theme = getSavedTheme(activity);
+        int mode = (theme == DARK) ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO;
+        
+        if (activity.getDelegate().getLocalNightMode() != mode) {
+            activity.getDelegate().setLocalNightMode(mode);
         }
+    }
+
+    public static void applyTheme(Context context) {
+        int theme = getSavedTheme(context);
+        AppCompatDelegate.setDefaultNightMode(
+            theme == DARK ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
+        );
     }
 
     public static void setTheme(Context context, int theme) {
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         prefs.edit().putInt(KEY_THEME, theme).apply();
-        applyTheme(context);
+        // Do NOT call setDefaultNightMode here to avoid global activity recreation lag
     }
     
     public static int getSavedTheme(Context context) {

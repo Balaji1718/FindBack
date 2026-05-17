@@ -2,6 +2,7 @@ package com.balaji.findback;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 
 public class GroqApiService {
 
+    private static final String TAG = "GroqAI";
     private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String MODEL = "llama3-70b-8192";
     
@@ -44,13 +46,17 @@ public class GroqApiService {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
+                
+                // RELEASE HARDENING: Consistent timeouts
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(30000);
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", MODEL);
 
                 JSONArray messages = new JSONArray();
-                messages.put(new JSONObject().put("role", "system").put("content", "You are a helpful Lost and Found AI. Context:\n" + context));
+                String systemPrompt = "You are a helpful Lost and Found AI. Use the provided institution data to answer accurately. Respond concisely.\nContext:\n" + context;
+                messages.put(new JSONObject().put("role", "system").put("content", systemPrompt));
 
                 for (ChatMessage chat : history) {
                     if (chat.getType() == ChatMessage.TYPE_LOADING) continue;
@@ -80,10 +86,11 @@ public class GroqApiService {
 
                     mainHandler.post(() -> callback.onSuccess(aiResponse));
                 } else {
-                    mainHandler.post(() -> callback.onFailure("Error: " + responseCode));
+                    mainHandler.post(() -> callback.onFailure("Service Error: " + responseCode));
                 }
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onFailure(e.getMessage()));
+                Log.e(TAG, "Groq Error", e);
+                mainHandler.post(() -> callback.onFailure("Network Error"));
             }
         });
     }

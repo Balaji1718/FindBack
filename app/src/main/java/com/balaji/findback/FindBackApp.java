@@ -12,18 +12,18 @@ public class FindBackApp extends Application {
     public void onCreate() {
         super.onCreate();
         
-        // Apply theme globally
         ThemeManager.applyTheme(this);
-        
         FirebaseApp.initializeApp(this);
+        
         FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.getInstance();
         
-        // Use Play Integrity for production
-        firebaseAppCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance());
-                
-        // Use Debug Provider for development/emulators
-        firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance());
+        // 🔥 FIX: Correctly switch between providers to prevent release APK hanging
+        if (BuildConfig.DEBUG) {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance());
+        } else {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance());
+        }
     }
 }

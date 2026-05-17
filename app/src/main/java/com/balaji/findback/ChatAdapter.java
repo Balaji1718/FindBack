@@ -1,5 +1,6 @@
 package com.balaji.findback;
 
+import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.card.MaterialCardView;
 
+import io.noties.markwon.Markwon;
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
+import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.ext.tasklist.TaskListPlugin;
+import io.noties.markwon.html.HtmlPlugin;
+import io.noties.markwon.image.glide.GlideImagesPlugin;
+import io.noties.markwon.linkify.LinkifyPlugin;
+import io.noties.markwon.simple.ext.SimpleExtPlugin;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +30,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private final List<ChatMessage> messages = new ArrayList<>();
     private OnDownloadClickListener downloadClickListener;
+    private Markwon markwon;
 
     public interface OnDownloadClickListener {
         void onDownloadPdf(String content);
@@ -70,6 +81,19 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        
+        if (markwon == null) {
+            markwon = Markwon.builder(parent.getContext())
+                    .usePlugin(TablePlugin.create(parent.getContext()))
+                    .usePlugin(StrikethroughPlugin.create())
+                    .usePlugin(LinkifyPlugin.create())
+                    .usePlugin(TaskListPlugin.create(parent.getContext()))
+                    .usePlugin(HtmlPlugin.create())
+                    .usePlugin(GlideImagesPlugin.create(parent.getContext()))
+                    .usePlugin(SimpleExtPlugin.create())
+                    .build();
+        }
+        
         if (viewType == ChatMessage.TYPE_USER) {
             return new UserViewHolder(inflater.inflate(R.layout.item_chat_user, parent, false));
         } else if (viewType == ChatMessage.TYPE_LOADING) {
@@ -87,7 +111,12 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         } else if (holder instanceof AiViewHolder) {
             AiViewHolder aiHolder = (AiViewHolder) holder;
             String text = message.getMessage();
-            aiHolder.chatMessage.setText(text);
+            
+            // Set movement method to make links clickable
+            aiHolder.chatMessage.setMovementMethod(LinkMovementMethod.getInstance());
+            
+            // Render markdown for AI messages
+            markwon.setMarkdown(aiHolder.chatMessage, text);
 
             boolean showPdf = message.isOfferPdf();
             boolean showWord = message.isOfferWord();
@@ -98,7 +127,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 aiHolder.btnPdfCard.setVisibility(showPdf ? View.VISIBLE : View.GONE);
                 aiHolder.btnWordCard.setVisibility(showWord ? View.VISIBLE : View.GONE);
 
-                // Add simple fade-in animation for reliability and feel
                 Animation fadeIn = AnimationUtils.loadAnimation(aiHolder.itemView.getContext(), android.R.anim.fade_in);
                 aiHolder.downloadContainer.startAnimation(fadeIn);
 

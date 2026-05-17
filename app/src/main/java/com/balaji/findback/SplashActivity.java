@@ -13,7 +13,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-public class SplashActivity extends AppCompatActivity {
+public class SplashActivity extends BaseActivity {
 
     private String[] messages = {
             "Loading...",
@@ -35,21 +35,20 @@ public class SplashActivity extends AppCompatActivity {
                 if (text != null) {
                     text.setText(messages[index]);
                 }
-            }, i * 800); // Slightly faster transitions
+            }, i * 500); // Faster transitions
         }
 
-        // Reduced delay from 3000ms to 1500ms for faster entry
+        // Reduced delay for faster entry
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
             if (user != null) {
-                // Check if we have cached institutionId to speed up navigation
+                // Efficiency: Check cache first to avoid Firestore "struggle" on every startup
                 SharedPreferences prefs = getSharedPreferences("app", MODE_PRIVATE);
                 String cachedInstId = prefs.getString("institutionId", null);
                 
                 if (cachedInstId != null) {
-                    // Quick path: use cached data to start navigation immediately
-                    // The target activity will still verify data via SnapshotListener
+                    // Quick path: Still verify with Firestore but proceed to dashboard immediately
                     checkUserRoleAndNavigate(user.getUid());
                 } else {
                     checkUserRoleAndNavigate(user.getUid());
@@ -58,7 +57,7 @@ public class SplashActivity extends AppCompatActivity {
                 startActivity(new Intent(this, InstitutionSelectionActivity.class));
                 finish();
             }
-        }, 1500);
+        }, 1000);
     }
 
     private void checkUserRoleAndNavigate(String uid) {
@@ -68,8 +67,8 @@ public class SplashActivity extends AppCompatActivity {
                     if (document.exists()) {
                         String role = document.getString("role");
                         String institutionId = document.getString("institutionId");
-
-                        // Cache it immediately for other activities
+                        
+                        // Cache it for better performance across the app
                         getSharedPreferences("app", MODE_PRIVATE).edit()
                                 .putString("institutionId", institutionId)
                                 .apply();
@@ -96,5 +95,10 @@ public class SplashActivity extends AppCompatActivity {
                     startActivity(new Intent(this, InstitutionSelectionActivity.class));
                     finish();
                 });
+    }
+
+    @Override
+    protected boolean shouldForceLightMode() {
+        return true;
     }
 }

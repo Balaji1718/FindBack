@@ -48,8 +48,10 @@ public class NvidiaApiService {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(30000);
+                
+                // 🔥 RELEASE APK HARDENING: 60s timeout for stability on mobile data
+                conn.setConnectTimeout(60000);
+                conn.setReadTimeout(60000);
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", PRIMARY_MODEL);
@@ -59,8 +61,15 @@ public class NvidiaApiService {
 
                 JSONArray messages = new JSONArray();
                 JSONObject systemMessage = new JSONObject();
+                
+                // Re-instating high-quality system specialization
+                String systemPrompt = "You are a helpful Lost and Found AI assistant. " +
+                    "Use the provided institution data to answer accurately. " +
+                    "Respond using this structure:\nTitle:\nSummary:\nKey Points:\nConclusion:\n\n" +
+                    "Context:\n" + context;
+                    
                 systemMessage.put("role", "system");
-                systemMessage.put("content", "You are a helpful Lost and Found AI assistant. Use this context to answer queries for this specific institution:\n" + context);
+                systemMessage.put("content", systemPrompt);
                 messages.put(systemMessage);
 
                 for (ChatMessage chat : history) {
@@ -98,11 +107,11 @@ public class NvidiaApiService {
 
                     mainHandler.post(() -> callback.onSuccess(aiResponse));
                 } else {
-                    mainHandler.post(() -> callback.onFailure("Service Code: " + responseCode));
+                    mainHandler.post(() -> callback.onFailure("Error: " + responseCode));
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Nvidia API Error", e);
-                mainHandler.post(() -> callback.onFailure("Network Error or Timeout"));
+                Log.e(TAG, "API Exception", e);
+                mainHandler.post(() -> callback.onFailure("Network Error/Timeout"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -110,6 +119,6 @@ public class NvidiaApiService {
     }
 
     public void sendMessage(String userMessage, ChatCallback callback) {
-        sendMessageStructured("No context", new ArrayList<>(), userMessage, callback);
+        sendMessageStructured("Limited Context.", new ArrayList<>(), userMessage, callback);
     }
 }

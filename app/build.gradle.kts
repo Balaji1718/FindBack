@@ -123,6 +123,16 @@ dependencies {
     // 📦 JSON Parsing
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // 📝 Typography & Markdown Support
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    implementation("io.noties.markwon:html:4.6.2")
+    implementation("io.noties.markwon:image-glide:4.6.2")
+    implementation("io.noties.markwon:linkify:4.6.2")
+    implementation("io.noties.markwon:simple-ext:4.6.2")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
