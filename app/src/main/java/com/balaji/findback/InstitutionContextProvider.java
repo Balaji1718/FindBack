@@ -1,10 +1,14 @@
 package com.balaji.findback;
 
+import com.google.firebase.firestore.AggregateSource;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class InstitutionContextProvider {
@@ -13,7 +17,7 @@ public class InstitutionContextProvider {
         void onLoaded(String context);
     }
 
-    public static void load(String institutionId, Callback callback) {
+    public static void load(String institutionId, boolean isAdmin, Callback callback) {
         if (institutionId == null) {
             callback.onLoaded("No institution linked.");
             return;
@@ -22,66 +26,92 @@ public class InstitutionContextProvider {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         StringBuilder context = new StringBuilder();
 
-        context.append("Institution Context: ").append(institutionId).append("\n\n");
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss", Locale.getDefault());
+        context.append("CURRENT SYSTEM TIME: ").append(sdf.format(new Date())).append("\n");
+        context.append("INSTITUTION IDENTITY: ").append(institutionId).append("\n");
 
-        // 1. Fetch Items with details
-        db.collection("items")
-                .whereEqualTo("institutionId", institutionId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(20)
-                .get()
-                .addOnSuccessListener(items -> {
-                    int totalItems = items.size();
-                    int lost = 0, found = 0;
-                    Map<String, Integer> categoryMap = new HashMap<>();
+        // 1. STATS: Fetch accurate totals using server-side aggregation
+        db.collection("items").whereEqualTo("institutionId", institutionId).count().get(AggregateSource.SERVER).addOnSuccessListener(totalTask -> {
+            long totalItems = totalTask.getCount();
+            
+            db.collection("items").whereEqualTo("institutionId", institutionId).whereEqualTo("type", "LOST").count().get(AggregateSource.SERVER).addOnSuccessListener(lostTask -> {
+                long lostCount = lostTask.getCount();
+                long foundCount = totalItems - lostCount;
 
-                    context.append("--- Items Overview ---\n");
-                    for (QueryDocumentSnapshot doc : items) {
-                        String type = doc.getString("type");
-                        String cat = doc.getString("category");
-                        if ("LOST".equalsIgnoreCase(type)) lost++;
-                        else if ("FOUND".equalsIgnoreCase(type)) found++;
-                        
-                        if (cat != null) categoryMap.put(cat, categoryMap.getOrDefault(cat, 0) + 1);
-                    }
+                context.append("\n[OVERALL STATISTICS]\n");
+                context.append("- Total Records in Database: ").append(totalItems).append("\n");
+                context.append("- Items reported as LOST: ").append(lostCount).append("\n");
+                context.append("- Items reported as FOUND: ").append(foundCount).append("\n");
 
-                    context.append("Total: ").append(totalItems).append(" (Lost: ").append(lost).append(", Found: ").append(found).append(")\n");
-                    context.append("Categories: ").append(categoryMap.toString()).append("\n\n");
+                // 2. RECENT ITEMS: Fetch detailed list for intent mapping
+                db.collection("items")
+                        .whereEqualTo("institutionId", institutionId)
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(60) 
+                        .get()
+                        .addOnSuccessListener(items -> {
+                            Map<String, Integer> categoryMap = new HashMap<>();
+                            StringBuilder recentDetails = new StringBuilder();
+                            
+                            for (QueryDocumentSnapshot doc : items) {
+                                String title = doc.getString("title");
+                                String type = doc.getString("type");
+                                String cat = doc.getString("category");
+                                String status = doc.getString("status");
+                                String desc = doc.getString("description");
+                                if (desc != null && desc.length() > 60) desc = desc.substring(0, 57) + "...";
+                                
+                                if (cat != null) categoryMap.put(cat, categoryMap.getOrDefault(cat, 0) + 1);
+                                
+                                recentDetails.append("- ").append(title)
+                                             .append(" (").append(type).append(")")
+                                             .append(" | Cat: ").append(cat)
+                                             .append(" | Details: ").append(desc != null ? desc : "No description")
+                                             .append(" | Status: ").append(status != null ? status : "Active").append("\n");
+                            }
 
-                    // 2. Fetch Claims with details
-                    db.collection("claims")
-                            .whereEqualTo("institutionId", institutionId)
-                            .get()
-                            .addOnSuccessListener(claims -> {
-                                int totalClaims = claims.size();
-                                int pending = 0, approved = 0, returned = 0;
+                            context.append("[CATEGORY DISTRIBUTION]\n").append(categoryMap.toString()).append("\n");
+                            context.append("\n[RECENTLY POSTED ITEMS (Top 60)]\n").append(recentDetails);
 
-                                for (QueryDocumentSnapshot doc : claims) {
-                                    String status = doc.getString("status");
-                                    if ("PENDING".equalsIgnoreCase(status)) pending++;
-                                    else if ("APPROVED".equalsIgnoreCase(status)) approved++;
-                                    else if ("RETURNED".equalsIgnoreCase(status)) returned++;
-                                }
-
-                                context.append("--- Claims Overview ---\n");
-                                context.append("Total Claims: ").append(totalClaims).append("\n");
-                                context.append("Pending: ").append(pending).append("\n");
-                                context.append("Approved: ").append(approved).append("\n");
-                                context.append("Returned: ").append(returned).append("\n\n");
-
-                                // 3. Recent Activity (Latest 5 items)
-                                context.append("--- Recent Activity ---\n");
-                                int count = 0;
-                                for (QueryDocumentSnapshot doc : items) {
-                                    if (count++ >= 5) break;
-                                    context.append("- ").append(doc.getString("title"))
-                                           .append(" (").append(doc.getString("type")).append(")\n");
-                                }
-
+                            if (!isAdmin) {
                                 callback.onLoaded(context.toString());
-                            })
-                            .addOnFailureListener(e -> callback.onLoaded(context.toString()));
-                })
-                .addOnFailureListener(e -> callback.onLoaded(context.toString()));
+                                return;
+                            }
+
+                            // 3. ADMIN ONLY: Management & User Stats
+                            db.collection("users").whereEqualTo("institutionId", institutionId).count().get(AggregateSource.SERVER).addOnSuccessListener(userTask -> {
+                                long totalUsers = userTask.getCount();
+                                
+                                db.collection("claims").whereEqualTo("institutionId", institutionId).count().get(AggregateSource.SERVER).addOnSuccessListener(claimsTask -> {
+                                    long totalClaims = claimsTask.getCount();
+                                    
+                                    db.collection("reports").whereEqualTo("institutionId", institutionId).count().get(AggregateSource.SERVER).addOnSuccessListener(reportsTask -> {
+                                        long totalReports = reportsTask.getCount();
+
+                                        context.append("\n[ADMIN MANAGEMENT DATA]\n");
+                                        context.append("- Total Registered Users: ").append(totalUsers).append("\n");
+                                        context.append("- Total Claims Received: ").append(totalClaims).append("\n");
+                                        context.append("- Total Security/Spam Reports: ").append(totalReports).append("\n");
+                                        
+                                        db.collection("claims").whereEqualTo("institutionId", institutionId).get().addOnSuccessListener(claims -> {
+                                            int pending = 0, approved = 0, returned = 0;
+                                            for (QueryDocumentSnapshot d : claims) {
+                                                String s = d.getString("status");
+                                                if ("PENDING".equalsIgnoreCase(s)) pending++;
+                                                else if ("APPROVED".equalsIgnoreCase(s)) approved++;
+                                                else if ("RETURNED".equalsIgnoreCase(s)) returned++;
+                                            }
+                                            context.append("- Claims Breakdown -> Pending: ").append(pending)
+                                                   .append(", Approved: ").append(approved)
+                                                   .append(", Returned: ").append(returned).append("\n");
+                                            callback.onLoaded(context.toString());
+                                        }).addOnFailureListener(e -> callback.onLoaded(context.toString()));
+                                    }).addOnFailureListener(e -> callback.onLoaded(context.toString()));
+                                }).addOnFailureListener(e -> callback.onLoaded(context.toString()));
+                            }).addOnFailureListener(e -> callback.onLoaded(context.toString()));
+                        })
+                        .addOnFailureListener(e -> callback.onLoaded(context.toString()));
+            }).addOnFailureListener(e -> callback.onLoaded(context.toString()));
+        }).addOnFailureListener(e -> callback.onLoaded("Error linking to institution database."));
     }
 }

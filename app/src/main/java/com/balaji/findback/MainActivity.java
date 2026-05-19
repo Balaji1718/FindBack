@@ -171,8 +171,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
     private void updateTabsUI() {
         TypedValue typedValue = new TypedValue();
-        // Fix: Use androidx.appcompat.R.attr.colorPrimary as colorPrimary is defined in AppCompat.
-        // This is needed because android.nonTransitiveRClass=true is enabled in gradle.properties.
         getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true);
         int activeColor = typedValue.data;
         
@@ -273,7 +271,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurfaceVariant, typedValue, true);
         int defaultColor = typedValue.data;
         
-        // Using a semantic green for active filters
         int activeColor = Color.parseColor("#43A047"); 
         
         boolean isAll = selectedTypes.isEmpty() && selectedStatuses.isEmpty();
@@ -329,6 +326,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         new AlertDialog.Builder(this).setTitle("Logout").setMessage("Logout?")
                 .setPositiveButton("Yes", (d, w) -> {
                     getSharedPreferences("app", MODE_PRIVATE).edit().clear().apply();
+                    getSharedPreferences("ai_chat_prefs", MODE_PRIVATE).edit().clear().apply();
                     auth.signOut();
                     Intent intent = new Intent(this, InstitutionSelectionActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -358,6 +356,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
                         if (institutionId == null || !institutionId.equals(newInstitutionId)) {
                             institutionId = newInstitutionId;
                             institutionText.setText("Institution: " + institutionId);
+                            getSharedPreferences("app", MODE_PRIVATE).edit().putString("institutionId", institutionId).apply();
                             startItemsListener();
                         }
                     }

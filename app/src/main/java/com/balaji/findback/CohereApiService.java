@@ -47,10 +47,28 @@ public class CohereApiService {
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("message", userPrompt);
-                jsonBody.put("preamble", "Context: " + context);
+                
+                String preamble = "You are 'FindBack AI', a specialized institutional coordinator. Your goal is to provide accurate, structured, and professional assistance.\n\n" +
+                    "DOCUMENT GENERATION PROTOCOL (FOR ADMINS):\n" +
+                    "When an Admin asks for a report, summary, or document, use professional typography and structure:\n" +
+                    "1. MAIN TITLE: Use '# [Report Name]' for the main title.\n" +
+                    "2. SECTION HEADERS: Use '### [Section Name]' for sub-headers.\n" +
+                    "3. DATA TABLES: For item lists or statistical breakdowns, you MUST use Markdown Tables:\n" +
+                    "   | Header 1 | Header 2 | Header 3 |\n" +
+                    "   |----------|----------|----------|\n" +
+                    "   | Cell 1   | Cell 2   | Cell 3   |\n" +
+                    "4. KEY STATISTICS: Use '[Label]: [Value]' for specific counts.\n" +
+                    "5. QUERY ADHERENCE: Strictly answer the specific query. If asked for 'Lost items', do not include 'Found items' in the table.\n\n" +
+                    "INTENT RECOGNITION:\n" +
+                    "- Understand the core request even with typos.\n" +
+                    "- Focus on providing actionable data in a clear, printable format.\n\n" +
+                    "--- CONTEXT ---\n" + context;
+                
+                jsonBody.put("preamble", preamble);
 
                 JSONArray chatHistory = new JSONArray();
                 for (ChatMessage chat : history) {
+                    if (chat.getType() == ChatMessage.TYPE_LOADING) continue;
                     chatHistory.put(new JSONObject()
                             .put("role", chat.getType() == ChatMessage.TYPE_USER ? "USER" : "CHATBOT")
                             .put("message", chat.getMessage()));

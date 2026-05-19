@@ -5,10 +5,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.Layout;
 import android.text.StaticLayout;
@@ -36,18 +40,24 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
-import com.google.firebase.firestore.WriteBatch;
+import com.google.firebase.firestore.SetOptions;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHistoryClickListener {
 
@@ -79,6 +89,9 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
 
     private String pendingDownloadContent = "";
     private String pendingFormat = ""; 
+
+    private final ExecutorService reportExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -102,6 +115,9 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         setContentView(R.layout.activity_ai_chat);
 
         db = FirebaseFirestore.getInstance();
+
+        String roleFromIntent = getIntent().getStringExtra("userRole");
+        if (roleFromIntent != null) userRole = roleFromIntent;
 
         SharedPreferences appPrefs = getSharedPreferences("app", MODE_PRIVATE);
         institutionId = appPrefs.getString("institutionId", null);
@@ -162,33 +178,217 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     }
 
     private void startDownloadProcess() {
-        String fileName = "Report_" + System.currentTimeMillis();
+        String fileName = "Report_" + new SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(new Date());
         if ("pdf".equals(pendingFormat)) createPdfLauncher.launch(fileName + ".pdf");
         else createWordLauncher.launch(fileName + ".doc");
     }
 
     private void savePdf(Uri uri, String content) {
-        PdfDocument document = new PdfDocument();
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(595, 842, 1).create();
-        PdfDocument.Page page = document.startPage(pageInfo);
-        Canvas canvas = page.getCanvas();
-        TextPaint paint = new TextPaint();
-        paint.setTextSize(12);
-        // Use color relevant to theme if possible, but PDF is usually white background
-        paint.setColor(android.graphics.Color.BLACK);
-        StaticLayout staticLayout = StaticLayout.Builder.obtain(content, 0, content.length(), paint, 515)
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0, 1.2f).setIncludePad(false).build();
-        canvas.translate(40, 40);
-        staticLayout.draw(canvas);
-        document.finishPage(page);
-        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
-            document.writeTo(os);
-            Toast.makeText(this, "PDF saved successfully", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) { 
-            Log.e(TAG, "Error saving PDF", e);
-        } finally {
-            document.close();
+        reportExecutor.execute(() -> {
+            PdfDocument document = new PdfDocument();
+            int pageWidth = 595;
+            int pageHeight = 842;
+            int margin = 50;
+            int usableWidth = pageWidth - (2 * margin);
+
+            // Modern Typography Setup
+            TextPaint titlePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            titlePaint.setTextSize(26);
+            titlePaint.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+            titlePaint.setColor(android.graphics.Color.rgb(33, 33, 33));
+
+            TextPaint headerPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            headerPaint.setTextSize(15);
+            headerPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            headerPaint.setColor(android.graphics.Color.rgb(66, 66, 66));
+
+            TextPaint bodyPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            bodyPaint.setTextSize(11.5f);
+            bodyPaint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            bodyPaint.setColor(android.graphics.Color.rgb(75, 75, 75));
+
+            TextPaint footerPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            footerPaint.setTextSize(9);
+            footerPaint.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+            footerPaint.setColor(android.graphics.Color.GRAY);
+
+            Paint accentPaint = new Paint();
+            accentPaint.setColor(android.graphics.Color.rgb(0, 102, 204));
+            accentPaint.setStrokeWidth(2f);
+
+            Paint linePaint = new Paint();
+            linePaint.setColor(android.graphics.Color.LTGRAY);
+            linePaint.setStrokeWidth(0.8f);
+
+            String[] lines = content.split("\n");
+            final int[] pageNumber = { 1 };
+            PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber[0]).create();
+            final PdfDocument.Page[] page = { document.startPage(pageInfo) };
+            Canvas canvas = page[0].getCanvas();
+            int currentY = margin;
+
+            // Header Section
+            canvas.drawText("OFFICIAL CAMPUS REPORT", margin, currentY - 10, footerPaint);
+            canvas.drawLine(margin, currentY - 5, pageWidth - margin, currentY - 5, accentPaint);
+            currentY += 10;
+
+            for (int i = 0; i < lines.length; i++) {
+                String line = lines[i].trim();
+                if (line.isEmpty()) {
+                    currentY += 12;
+                    continue;
+                }
+
+                // Table Detection
+                if (line.startsWith("|") && line.endsWith("|")) {
+                    List<String[]> tableRows = new ArrayList<>();
+                    while (i < lines.length && lines[i].trim().startsWith("|")) {
+                        String rowStr = lines[i].trim();
+                        if (!rowStr.contains("---")) {
+                            String[] cells = rowStr.split("\\|");
+                            List<String> cleanedCells = new ArrayList<>();
+                            for (String c : cells) if (!c.isEmpty()) cleanedCells.add(c.trim());
+                            tableRows.add(cleanedCells.toArray(new String[0]));
+                        }
+                        i++;
+                    }
+                    i--;
+
+                    if (!tableRows.isEmpty()) {
+                        currentY = drawTable(page, pageNumber, tableRows, margin, currentY, usableWidth, bodyPaint, linePaint, document, pageInfo);
+                        canvas = page[0].getCanvas();
+                        continue;
+                    }
+                }
+
+                TextPaint currentPaint = bodyPaint;
+                boolean isTitle = false;
+                boolean isHeader = false;
+                int xOffset = margin;
+
+                if (line.startsWith("# ")) {
+                    currentPaint = titlePaint;
+                    line = line.substring(2).toUpperCase();
+                    isTitle = true;
+                } else if (line.startsWith("## ") || line.startsWith("### ")) {
+                    currentPaint = headerPaint;
+                    line = line.substring(line.indexOf(" ") + 1);
+                    isHeader = true;
+                } else if (line.startsWith("- ") || line.startsWith("* ")) {
+                    xOffset += 15;
+                    canvas.drawCircle(margin + 5, currentY + 7, 2, currentPaint);
+                }
+
+                StaticLayout sl = StaticLayout.Builder.obtain(line, 0, line.length(), currentPaint, usableWidth - (xOffset - margin))
+                        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                        .setLineSpacing(0, 1.4f)
+                        .build();
+
+                if (currentY + sl.getHeight() > pageHeight - margin - 40) {
+                    drawFooter(canvas, pageWidth, pageHeight, pageNumber[0]);
+                    document.finishPage(page[0]);
+                    pageNumber[0]++;
+                    pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber[0]).create();
+                    page[0] = document.startPage(pageInfo);
+                    canvas = page[0].getCanvas();
+                    currentY = margin;
+                }
+
+                canvas.save();
+                canvas.translate(xOffset, currentY);
+                sl.draw(canvas);
+                canvas.restore();
+
+                currentY += sl.getHeight() + 8;
+
+                if (isTitle) {
+                    currentY += 5;
+                    canvas.drawLine(margin, currentY, margin + 60, currentY, accentPaint);
+                    currentY += 15;
+                } else if (isHeader) {
+                    currentY += 4;
+                }
+            }
+
+            drawFooter(canvas, pageWidth, pageHeight, pageNumber[0]);
+            document.finishPage(page[0]);
+
+            try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                document.writeTo(os);
+                mainHandler.post(() -> Toast.makeText(this, "Professional Report Generated", Toast.LENGTH_SHORT).show());
+            } catch (IOException e) { 
+                Log.e(TAG, "Error saving PDF", e);
+                mainHandler.post(() -> Toast.makeText(this, "Failed to save report", Toast.LENGTH_SHORT).show());
+            } finally {
+                document.close();
+            }
+        });
+    }
+
+    private int drawTable(PdfDocument.Page[] pageRef, int[] pageNumberRef, List<String[]> rows, int startX, int startY, int width, TextPaint paint, Paint linePaint, PdfDocument doc, PdfDocument.PageInfo info) {
+        int rowHeight = 28;
+        int colCount = rows.get(0).length;
+        int colWidth = width / colCount;
+        int currentY = startY;
+        Canvas canvas = pageRef[0].getCanvas();
+
+        Paint headerBg = new Paint();
+        headerBg.setColor(android.graphics.Color.rgb(245, 245, 245));
+
+        TextPaint tableHeaderPaint = new TextPaint(paint);
+        tableHeaderPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        tableHeaderPaint.setTextSize(11);
+
+        for (int r = 0; r < rows.size(); r++) {
+            String[] row = rows.get(r);
+            
+            if (currentY + rowHeight > info.getPageHeight() - 60) {
+                drawFooter(canvas, info.getPageWidth(), info.getPageHeight(), pageNumberRef[0]);
+                doc.finishPage(pageRef[0]);
+                pageNumberRef[0]++;
+                pageRef[0] = doc.startPage(new PdfDocument.PageInfo.Builder(info.getPageWidth(), info.getPageHeight(), pageNumberRef[0]).create());
+                canvas = pageRef[0].getCanvas();
+                currentY = 50;
+            }
+
+            if (r == 0) {
+                canvas.drawRect(startX, currentY, startX + width, currentY + rowHeight, headerBg);
+            }
+
+            for (int c = 0; c < colCount; c++) {
+                String text = (c < row.length) ? row[c] : "";
+                TextPaint p = (r == 0) ? tableHeaderPaint : paint;
+                
+                // Truncate text if too long for column
+                float textWidth = p.measureText(text);
+                if (textWidth > colWidth - 10) {
+                    text = text.substring(0, Math.min(text.length(), 15)) + "...";
+                }
+
+                canvas.drawText(text, startX + (c * colWidth) + 8, currentY + 18, p);
+            }
+            
+            canvas.drawLine(startX, currentY, startX + width, currentY, linePaint);
+            currentY += rowHeight;
         }
+        canvas.drawLine(startX, currentY, startX + width, currentY, linePaint);
+        
+        // Vertical lines
+        for(int c=0; c<=colCount; c++){
+            canvas.drawLine(startX + (c * colWidth), startY, startX + (c * colWidth), currentY, linePaint);
+        }
+        
+        return currentY + 15;
+    }
+
+    private void drawFooter(Canvas canvas, int width, int height, int pageNum) {
+        TextPaint footerPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        footerPaint.setTextSize(10);
+        footerPaint.setColor(android.graphics.Color.GRAY);
+        String dateStr = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(new Date());
+        String footer = "Generated by FindBack AI Assistant | " + dateStr + " | Page " + pageNum;
+        float footerWidth = footerPaint.measureText(footer);
+        canvas.drawText(footer, (width - footerWidth) / 2, height - 25, footerPaint);
     }
 
     private void saveWord(Uri uri, String content) {
@@ -248,7 +448,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (queryDocumentSnapshots.isEmpty()) return;
-                    
                     sessionList.clear();
                     for (DocumentSnapshot doc : queryDocumentSnapshots) {
                         ChatSession session = doc.toObject(ChatSession.class);
@@ -257,6 +456,25 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                             loadMessagesFromFirestore(uid, session.getSessionId());
                         }
                     }
+                    updateHistoryUI();
+                    saveLocalCache();
+                })
+                .addOnFailureListener(e -> fetchSessionsWithoutOrder(uid));
+    }
+
+    private void fetchSessionsWithoutOrder(String uid) {
+        db.collection("users").document(uid).collection("chat_sessions")
+                .get()
+                .addOnSuccessListener(query -> {
+                    sessionList.clear();
+                    for (DocumentSnapshot doc : query) {
+                        ChatSession session = doc.toObject(ChatSession.class);
+                        if (session != null) {
+                            sessionList.add(session);
+                            loadMessagesFromFirestore(uid, session.getSessionId());
+                        }
+                    }
+                    Collections.sort(sessionList, (a, b) -> Long.compare(b.getLastTimestamp(), a.getLastTimestamp()));
                     updateHistoryUI();
                     saveLocalCache();
                 });
@@ -293,35 +511,15 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         editor.apply();
     }
 
-    private void saveData(String sessionId) {
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        if (auth.getCurrentUser() == null || sessionId == null) return;
-        String uid = auth.getUid();
-
-        saveLocalCache();
-
-        ChatSession targetSession = null;
+    private void saveSessionObject(String sessionId) {
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+        ChatSession target = null;
         for (ChatSession s : sessionList) {
-            if (s.getSessionId().equals(sessionId)) {
-                targetSession = s;
-                break;
-            }
+            if (s.getSessionId().equals(sessionId)) { target = s; break; }
         }
-
-        if (targetSession != null) {
-            db.collection("users").document(uid).collection("chat_sessions")
-                    .document(sessionId).set(targetSession);
-            
-            List<ChatMessage> messages = chatHistoryMap.get(sessionId);
-            if (messages != null) {
-                WriteBatch batch = db.batch();
-                for (int i = 0; i < messages.size(); i++) {
-                    ChatMessage m = messages.get(i);
-                    batch.set(db.collection("users").document(uid).collection("chat_sessions")
-                            .document(sessionId).collection("messages").document(String.valueOf(i)), m);
-                }
-                batch.commit();
-            }
+        if (target != null) {
+            db.collection("users").document(uid).collection("chat_sessions").document(sessionId).set(target, SetOptions.merge());
         }
     }
 
@@ -337,7 +535,8 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private void addSessionToHistory(String id, String title, String userId) {
         ChatSession session = new ChatSession(id, title, userId, institutionId);
         sessionList.add(0, session);
-        saveData(id);
+        saveSessionObject(id);
+        updateHistoryUI();
     }
 
     @Override
@@ -349,7 +548,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         currentSessionId = session.getSessionId();
         historyAdapter.setSelectedSessionId(currentSessionId);
         List<ChatMessage> messages = chatHistoryMap.get(currentSessionId);
-        
         if (messages != null && !messages.isEmpty()) {
             welcomeLayout.setVisibility(View.GONE);
             chatAdapter.setMessages(new ArrayList<>(messages));
@@ -361,8 +559,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         drawerLayout.closeDrawer(GravityCompat.START);
     }
 
-    @Override
-    public void onRenameClick(ChatSession session) {
+    @Override public void onRenameClick(ChatSession session) {
         EditText input = new EditText(this);
         input.setText(session.getTitle());
         new AlertDialog.Builder(this).setTitle("Rename Chat").setView(input)
@@ -370,27 +567,20 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                     String name = input.getText().toString().trim();
                     if (!name.isEmpty()) {
                         for (ChatSession s : sessionList) {
-                            if (s.getSessionId().equals(session.getSessionId())) {
-                                s.setTitle(name);
-                                break;
-                            }
+                            if (s.getSessionId().equals(session.getSessionId())) { s.setTitle(name); break; }
                         }
                         updateHistoryUI();
-                        saveData(session.getSessionId());
+                        saveSessionObject(session.getSessionId());
                     }
                 }).setNegativeButton("Cancel", null).show();
     }
 
-    @Override
-    public void onDeleteClick(ChatSession session) {
+    @Override public void onDeleteClick(ChatSession session) {
         new AlertDialog.Builder(this).setTitle("Delete Chat?").setMessage("Are you sure?")
                 .setPositiveButton("Delete", (d, w) -> {
                     ChatSession toRemove = null;
                     for (ChatSession s : sessionList) {
-                        if (s.getSessionId().equals(session.getSessionId())) {
-                            toRemove = s;
-                            break;
-                        }
+                        if (s.getSessionId().equals(session.getSessionId())) { toRemove = s; break; }
                     }
                     if (toRemove != null) {
                         String id = toRemove.getSessionId();
@@ -398,9 +588,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                         chatHistoryMap.remove(id);
                         if (id.equals(currentSessionId)) startNewChat();
                         String uid = FirebaseAuth.getInstance().getUid();
-                        if (uid != null) {
-                            db.collection("users").document(uid).collection("chat_sessions").document(id).delete();
-                        }
+                        if (uid != null) db.collection("users").document(uid).collection("chat_sessions").document(id).delete();
                         updateHistoryUI();
                         saveLocalCache();
                     }
@@ -429,7 +617,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         final String requestSessionId;
         messageInput.setText("");
         hideWelcome();
-
         if (currentSessionId == null) {
             currentSessionId = UUID.randomUUID().toString();
             addSessionToHistory(currentSessionId, text.length() > 25 ? text.substring(0, 22) + "..." : text, FirebaseAuth.getInstance().getUid());
@@ -437,30 +624,26 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
             historyAdapter.setSelectedSessionId(currentSessionId);
             updateHistoryUI();
         }
-        
         requestSessionId = currentSessionId;
         ChatMessage userMsg = new ChatMessage(text, ChatMessage.TYPE_USER);
         chatAdapter.addMessage(userMsg);
         saveMessageToCurrentSession(userMsg);
-        
         ChatMessage loadingMsg = new ChatMessage("Thinking...", ChatMessage.TYPE_LOADING);
         chatAdapter.addMessage(loadingMsg);
         chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
-
         String finalInstId = institutionId != null ? institutionId : "default";
-
+        boolean isAdmin = "admin".equals(userRole);
         final boolean[] contextLoaded = {false};
         new android.os.Handler().postDelayed(() -> {
             if (!contextLoaded[0]) {
                 contextLoaded[0] = true;
                 callNvidia("Offline/Cached Mode", requestSessionId, text);
             }
-        }, 3000);
-
-        InstitutionContextProvider.load(finalInstId, context -> {
+        }, 4000);
+        InstitutionContextProvider.load(finalInstId, isAdmin, context -> {
             if (!contextLoaded[0]) {
                 contextLoaded[0] = true;
-                String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
+                String roleContext = "User Role: " + userRole + "\n" + context;
                 callNvidia(roleContext, requestSessionId, text);
             }
         });
@@ -469,35 +652,32 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private void handleAiSuccess(String response, String userPrompt) {
         chatAdapter.removeLoadingMessage();
         ChatMessage aiMsg = new ChatMessage(response, ChatMessage.TYPE_AI);
-        
-        // Issue 5: Detect Report Generation for Admins
         if ("admin".equals(userRole)) {
-            boolean isReport = response.contains("Summary:") || 
-                               response.contains("Overview") || 
-                               response.contains("Report") || 
-                               response.contains("Total Items") ||
-                               userPrompt.toLowerCase().contains("report");
-            
-            if (isReport) {
-                aiMsg.setOfferPdf(true);
-                aiMsg.setOfferWord(true);
-            }
+            boolean isReport = response.contains("Summary:") || response.contains("Overview") || response.contains("Report") || response.contains("Total Items") || userPrompt.toLowerCase().contains("report");
+            if (isReport) { aiMsg.setOfferPdf(true); aiMsg.setOfferWord(true); }
         }
-
         chatAdapter.addMessage(aiMsg);
         saveMessageToCurrentSession(aiMsg);
         chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
-        saveData(currentSessionId);
     }
 
     private void saveMessageToCurrentSession(ChatMessage msg) {
         if (currentSessionId != null) {
             List<ChatMessage> history = chatHistoryMap.get(currentSessionId);
-            if (history == null) {
-                history = new ArrayList<>();
-                chatHistoryMap.put(currentSessionId, history);
-            }
+            if (history == null) { history = new ArrayList<>(); chatHistoryMap.put(currentSessionId, history); }
             history.add(msg);
+            for (ChatSession s : sessionList) {
+                if (s.getSessionId().equals(currentSessionId)) { s.setLastTimestamp(msg.getTimestamp()); break; }
+            }
+            Collections.sort(sessionList, (a, b) -> Long.compare(b.getLastTimestamp(), a.getLastTimestamp()));
+            updateHistoryUI();
+            saveLocalCache();
+            String uid = FirebaseAuth.getInstance().getUid();
+            if (uid != null) {
+                db.collection("users").document(uid).collection("chat_sessions").document(currentSessionId)
+                        .collection("messages").document(String.valueOf(history.size() - 1)).set(msg);
+                saveSessionObject(currentSessionId);
+            }
         }
     }
 
@@ -532,5 +712,11 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                 }
             }
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        reportExecutor.shutdown();
     }
 }
