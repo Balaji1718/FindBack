@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="?attr/colorSurface">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -24,7 +24,6 @@
                 android:scaleType="centerCrop"
                 app:layout_collapseMode="parallax" />
 
-            <!-- Gradient scrim to make white toolbar icons/text visible -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="80dp"
@@ -73,7 +72,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Item Title"
-                        android:textColor="#212121"
+                        android:textColor="?attr/colorOnSurface"
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
@@ -84,8 +83,21 @@
                         android:layout_marginTop="12dp"
                         android:lineSpacingExtra="4dp"
                         android:text="Description goes here..."
-                        android:textColor="#616161"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tvContactInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="?attr/colorSecondaryContainer"
+                        android:padding="12dp"
+                        android:text="Contact: Pending Approval"
+                        android:textColor="?attr/colorOnSecondaryContainer"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -93,7 +105,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Tracking Status"
-                android:textColor="#212121"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"/>
@@ -127,7 +139,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text=" → "
-                        android:textColor="#9E9E9E" />
+                        android:textColor="?attr/colorOutline" />
 
                     <TextView
                         android:id="@+id/statusClaimed"
@@ -142,7 +154,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text=" → "
-                        android:textColor="#9E9E9E" />
+                        android:textColor="?attr/colorOutline" />
 
                     <TextView
                         android:id="@+id/statusApproved"
@@ -157,7 +169,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text=" → "
-                        android:textColor="#9E9E9E" />
+                        android:textColor="?attr/colorOutline" />
 
                     <TextView
                         android:id="@+id/statusReturned"
@@ -173,7 +185,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="History"
-                android:textColor="#212121"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"/>
@@ -191,8 +203,6 @@
                 android:layout_height="56dp"
                 android:text="Claim Item"
                 app:cornerRadius="12dp"
-                app:backgroundTint="#FF9800"
-                android:textColor="@android:color/white"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"/>
 

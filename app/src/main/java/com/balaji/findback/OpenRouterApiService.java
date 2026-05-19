@@ -54,7 +54,11 @@ public class OpenRouterApiService {
                 jsonBody.put("model", MODEL);
 
                 JSONArray messages = new JSONArray();
-                messages.put(new JSONObject().put("role", "system").put("content", "You are a helpful Lost and Found AI. Context:\n" + context));
+                // Enhanced Prompt for Admin Reporting
+                String systemPrompt = "You are a professional Lost and Found assistant. Use the provided context data to answer accurately.\n" +
+                    "ADMIN REPORTING: If an admin asks for a report, overview, or summary, generate a professional breakdown with statistics.\n" +
+                    "Context:\n" + context;
+                messages.put(new JSONObject().put("role", "system").put("content", systemPrompt));
 
                 for (ChatMessage chat : history) {
                     if (chat.getType() == ChatMessage.TYPE_LOADING) continue;

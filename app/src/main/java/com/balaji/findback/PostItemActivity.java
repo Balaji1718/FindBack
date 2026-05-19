@@ -116,6 +116,7 @@ public class PostItemActivity extends BaseActivity {
         editItemId = getIntent().getStringExtra("itemId");
         etTitle.setText(getIntent().getStringExtra("title"));
         etDescription.setText(getIntent().getStringExtra("description"));
+        etContactInfo.setText(getIntent().getStringExtra("contactInfo"));
         btnPost.setText("Update Item");
 
         String type = getIntent().getStringExtra("type");
@@ -193,35 +194,49 @@ public class PostItemActivity extends BaseActivity {
 
         String title = etTitle.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
+        String contactInfo = etContactInfo.getText().toString().trim();
         String type = spinnerType.getSelectedItem().toString().toUpperCase();
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("title", title);
-        data.put("description", description);
-        data.put("type", type);
-        data.put("imageBase64", base64Image);
-        data.put("lastUpdated", FieldValue.serverTimestamp());
+        FirebaseFirestore.getInstance().collection("users").document(user.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    String userName = documentSnapshot.getString("name");
+                    if (userName == null) userName = "User";
 
-        if (isEditMode) {
-            FirebaseFirestore.getInstance().collection("items").document(editItemId)
-                    .update(data)
-                    .addOnSuccessListener(v -> {
-                        showLoading(false);
-                        Toast.makeText(this, "Item Updated", Toast.LENGTH_SHORT).show();
-                        finish();
-                    });
-        } else {
-            // New item logic
-            data.put("institutionId", institutionId);
-            data.put("postedBy", user.getUid());
-            data.put("status", "OPEN");
-            data.put("timestamp", FieldValue.serverTimestamp());
-            FirebaseFirestore.getInstance().collection("items").add(data)
-                    .addOnSuccessListener(v -> {
-                        showLoading(false);
-                        Toast.makeText(this, "Item Posted", Toast.LENGTH_SHORT).show();
-                        finish();
-                    });
-        }
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("title", title);
+                    data.put("description", description);
+                    data.put("contactInfo", contactInfo);
+                    data.put("type", type);
+                    data.put("imageBase64", base64Image);
+                    data.put("lastUpdated", FieldValue.serverTimestamp());
+                    data.put("postedByName", userName);
+
+                    if (isEditMode) {
+                        FirebaseFirestore.getInstance().collection("items").document(editItemId)
+                                .update(data)
+                                .addOnSuccessListener(v -> {
+                                    showLoading(false);
+                                    Toast.makeText(this, "Item Updated", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                });
+                    } else {
+                        // New item logic
+                        data.put("institutionId", institutionId);
+                        data.put("postedBy", user.getUid());
+                        data.put("status", "OPEN");
+                        data.put("timestamp", FieldValue.serverTimestamp());
+                        FirebaseFirestore.getInstance().collection("items").add(data)
+                                .addOnSuccessListener(v -> {
+                                    showLoading(false);
+                                    Toast.makeText(this, "Item Posted", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                });
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    showLoading(false);
+                    Toast.makeText(this, "Failed to get user info", Toast.LENGTH_SHORT).show();
+                });
     }
 }

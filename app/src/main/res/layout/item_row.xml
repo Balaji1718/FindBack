@@ -19,7 +19,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Image Container -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="180dp">
@@ -32,14 +31,12 @@
                 android:src="@android:drawable/ic_menu_gallery"
                 android:background="?attr/colorSurfaceVariant"/>
 
-            <!-- Status Badge overlay on image top-right -->
             <TextView
                 android:id="@+id/statusBadge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|end"
                 android:layout_margin="12dp"
-                android:background="#4CAF50"
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="4dp"
                 android:text="OPEN"
@@ -54,7 +51,6 @@
             android:layout_height="wrap_content"
             android:padding="12dp">
 
-            <!-- Title -->
             <TextView
                 android:id="@+id/textTitle"
                 android:layout_width="wrap_content"
@@ -68,7 +64,6 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <!-- Report Button (For others) -->
             <ImageButton
                 android:id="@+id/btnReport"
                 android:layout_width="32dp"
@@ -80,7 +75,6 @@
                 android:src="@android:drawable/ic_menu_report_image"
                 app:tint="?attr/colorOnSurfaceVariant" />
 
-            <!-- Options Menu Button (For Owners & Admin) -->
             <ImageButton
                 android:id="@+id/btnOptions"
                 android:layout_width="32dp"
@@ -92,7 +86,6 @@
                 app:tint="?attr/colorOnSurfaceVariant"
                 android:visibility="gone" />
 
-            <!-- Type (Lost/Found) -->
             <TextView
                 android:id="@+id/textType"
                 android:layout_width="wrap_content"
@@ -100,29 +93,26 @@
                 android:layout_below="@id/textTitle"
                 android:layout_marginTop="4dp"
                 android:text="LOST"
-                android:textColor="#F44336"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
-            <!-- Posted By -->
             <TextView
                 android:id="@+id/textPostedBy"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/textType"
                 android:layout_marginTop="8dp"
-                android:text="Posted by: Balaji"
+                android:text="Posted by: Anonymous"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="13sp" />
 
-            <!-- Time -->
             <TextView
                 android:id="@+id/textTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/textPostedBy"
                 android:layout_marginTop="2dp"
-                android:text="2 hours ago"
+                android:text="just now"
                 android:textColor="?attr/colorOutline"
                 android:textSize="11sp" />
 

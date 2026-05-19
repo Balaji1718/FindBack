@@ -62,8 +62,10 @@ public class AdminUsersActivity extends BaseActivity {
 
         showLoading();
         
+        // Filter: Show all users EXCEPT those with the "admin" role
         userListener = db.collection("users")
                 .whereEqualTo("institutionId", institutionId)
+                .whereNotEqualTo("role", "admin")
                 .addSnapshotListener((value, error) -> {
                     if (error != null) {
                         Log.e(TAG, "Listen failed: " + error.getMessage());
@@ -83,7 +85,7 @@ public class AdminUsersActivity extends BaseActivity {
                     }
 
                     if (userList.isEmpty()) {
-                        showEmpty("No users found for this institution");
+                        showEmpty("No regular users found for this institution");
                     } else {
                         showData();
                     }

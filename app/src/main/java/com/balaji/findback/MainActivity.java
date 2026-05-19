@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -169,11 +170,20 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     }
 
     private void updateTabsUI() {
-        int activeColor = ContextCompat.getColor(this, R.color.purple_500);
-        int inactiveColor = Color.TRANSPARENT;
-        int currentTheme = ThemeManager.getSavedTheme(this);
-        int inactiveTextColor = (currentTheme == ThemeManager.DARK) ? Color.LTGRAY : Color.DKGRAY;
-        int activeTextColor = Color.WHITE;
+        TypedValue typedValue = new TypedValue();
+        // Fix: Use androidx.appcompat.R.attr.colorPrimary as colorPrimary is defined in AppCompat.
+        // This is needed because android.nonTransitiveRClass=true is enabled in gradle.properties.
+        getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true);
+        int activeColor = typedValue.data;
+        
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnPrimary, typedValue, true);
+        int activeTextColor = typedValue.data;
+
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true);
+        int inactiveColor = typedValue.data;
+
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true);
+        int inactiveTextColor = typedValue.data;
 
         btnOthers.setBackgroundColor(showMine ? inactiveColor : activeColor);
         btnOthers.setTextColor(showMine ? inactiveTextColor : activeTextColor);
@@ -259,13 +269,17 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
     }
 
     private void updateFilterUI() {
-        int currentTheme = ThemeManager.getSavedTheme(this);
-        int defaultColor = (currentTheme == ThemeManager.DARK) ? Color.parseColor("#333333") : Color.parseColor("#E0E0E0");
-        int activeColor = Color.parseColor("#4CAF50");
+        TypedValue typedValue = new TypedValue();
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurfaceVariant, typedValue, true);
+        int defaultColor = typedValue.data;
+        
+        // Using a semantic green for active filters
+        int activeColor = Color.parseColor("#43A047"); 
+        
         boolean isAll = selectedTypes.isEmpty() && selectedStatuses.isEmpty();
 
         filterAll.setBackgroundColor(isAll ? activeColor : defaultColor);
-        filterAll.setTextColor(isAll ? Color.WHITE : (currentTheme == ThemeManager.DARK ? Color.WHITE : Color.BLACK));
+        filterAll.setTextColor(isAll ? Color.WHITE : ContextCompat.getColor(this, android.R.color.secondary_text_dark));
 
         updateBtnUI(filterLost, ivCheckLost, selectedTypes.contains("LOST"), activeColor, defaultColor);
         updateBtnUI(filterFound, ivCheckFound, selectedTypes.contains("FOUND"), activeColor, defaultColor);
@@ -275,8 +289,7 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
 
     private void updateBtnUI(Button b, ImageView iv, boolean active, int ac, int dc) {
         b.setBackgroundColor(active ? ac : dc);
-        int currentTheme = ThemeManager.getSavedTheme(this);
-        b.setTextColor(active ? Color.WHITE : (currentTheme == ThemeManager.DARK ? Color.WHITE : Color.BLACK));
+        b.setTextColor(active ? Color.WHITE : ContextCompat.getColor(this, android.R.color.secondary_text_dark));
         iv.setVisibility(active ? View.VISIBLE : View.GONE);
     }
 
@@ -328,8 +341,6 @@ public class MainActivity extends BaseActivity implements ItemAdapter.OnItemActi
         String uid = auth.getUid();
         if (uid == null) return;
         
-        // 🔥 SIMULTANEOUS USE SECURITY:
-        // Automatically kicks out users if they are blocked by an admin in real-time.
         userListener = db.collection("users").document(uid)
                 .addSnapshotListener((doc, error) -> {
                     if (error != null) return;

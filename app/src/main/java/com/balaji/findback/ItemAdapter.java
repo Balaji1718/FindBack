@@ -8,6 +8,7 @@ import android.graphics.RenderEffect;
 import android.graphics.Shader;
 import android.os.Build;
 import android.util.Base64;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -91,7 +92,12 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
         String type = item.getType();
         if (type != null) {
             holder.textType.setText(type.toUpperCase());
-            holder.textType.setTextColor(type.equalsIgnoreCase("lost") ? Color.RED : Color.parseColor("#4CAF50"));
+            // Issue 4: Dynamic Theme Colors for types
+            if (type.equalsIgnoreCase("lost")) {
+                holder.textType.setTextColor(Color.parseColor("#E53935")); // Material Red 600
+            } else {
+                holder.textType.setTextColor(Color.parseColor("#43A047")); // Material Green 600
+            }
         }
 
         String name = item.getPostedByName();
@@ -100,12 +106,13 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
         String status = item.getStatus();
         if (status != null) {
             holder.statusBadge.setText(status.toUpperCase());
+            // Issue 4: Theme aware status colors
             if (status.equalsIgnoreCase("OPEN")) {
                 holder.statusBadge.setBackgroundColor(Color.parseColor("#4CAF50"));
-            } else if (status.equalsIgnoreCase("CLAIMED")) {
-                holder.statusBadge.setBackgroundColor(Color.parseColor("#FF9800"));
+            } else if (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("APPROVED")) {
+                holder.statusBadge.setBackgroundColor(Color.parseColor("#FB8C00")); // Material Orange 600
             } else if (status.equalsIgnoreCase("RETURNED")) {
-                holder.statusBadge.setBackgroundColor(Color.parseColor("#9E9E9E"));
+                holder.statusBadge.setBackgroundColor(Color.parseColor("#757575")); // Material Gray 600
             }
         }
 
@@ -132,12 +139,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
 
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, ItemDetailActivity.class);
-            intent.putExtra("title", item.getTitle());
-            intent.putExtra("description", item.getDescription());
-            intent.putExtra("imageBase64", item.getImageBase64());
             intent.putExtra("itemId", item.getId());
             intent.putExtra("ownerId", item.getPostedBy());
-            intent.putExtra("status", item.getStatus());
             intent.putExtra("institutionId", item.getInstitutionId());
             context.startActivity(intent);
         });
@@ -160,13 +163,13 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
                 }
 
                 holder.imageItem.setOnClickListener(v -> {
-                    if (status != null && (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("RETURNED"))) {
+                    if (status != null && (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("APPROVED") || status.equalsIgnoreCase("RETURNED"))) {
                         Intent intent = new Intent(context, ImagePreviewActivity.class);
                         intent.putExtra("imageBase64", imageBase64);
                         intent.putExtra("status", status);
                         context.startActivity(intent);
                     } else {
-                        Toast.makeText(context, "Full image visible only after claim approval", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "Full image visible only after claim is made", Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -182,9 +185,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
     private void showOwnerOptions(Item item, int position) {
         String status = item.getStatus();
         
-        // ✅ RESTRICTION: Don't allow edit/delete if claim is in progress or completed
-        if (status != null && (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("RETURNED"))) {
-            Toast.makeText(context, "Cannot modify item after a claim has been made.", Toast.LENGTH_LONG).show();
+        if (status != null && (status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("APPROVED") || status.equalsIgnoreCase("RETURNED"))) {
+            Toast.makeText(context, "Cannot modify item after a claim process has started.", Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -204,6 +206,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ViewHolder> {
         intent.putExtra("itemId", item.getId());
         intent.putExtra("title", item.getTitle());
         intent.putExtra("description", item.getDescription());
+        intent.putExtra("contactInfo", item.getContactInfo());
         intent.putExtra("type", item.getType());
         intent.putExtra("imageBase64", item.getImageBase64());
         context.startActivity(intent);

@@ -49,7 +49,6 @@ public class NvidiaApiService {
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
                 
-                // 🔥 RELEASE APK HARDENING: 60s timeout for stability on mobile data
                 conn.setConnectTimeout(60000);
                 conn.setReadTimeout(60000);
 
@@ -62,10 +61,12 @@ public class NvidiaApiService {
                 JSONArray messages = new JSONArray();
                 JSONObject systemMessage = new JSONObject();
                 
-                // Re-instating high-quality system specialization
-                String systemPrompt = "You are a helpful Lost and Found AI assistant. " +
-                    "Use the provided institution data to answer accurately. " +
-                    "Respond using this structure:\nTitle:\nSummary:\nKey Points:\nConclusion:\n\n" +
+                // Enhanced Prompt for Admin Reporting
+                String systemPrompt = "You are a Lost and Found AI assistant for an institution. " +
+                    "Use the provided context data to answer accurately.\n" +
+                    "REPORT GENERATION: If the user is an Admin and asks for a report, summary, or overview, " +
+                    "generate a professional report with statistics (totals, lost vs found, claim status). " +
+                    "Format the report using headers like 'Report Title', 'Summary', and 'Detailed Breakdown'.\n" +
                     "Context:\n" + context;
                     
                 systemMessage.put("role", "system");

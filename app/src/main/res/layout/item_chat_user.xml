@@ -4,17 +4,19 @@
     android:layout_height="wrap_content"
     android:gravity="end"
     android:orientation="vertical"
-    android:paddingBottom="12dp">
+    android:paddingBottom="12dp"
+    android:paddingStart="64dp"
+    android:paddingEnd="12dp">
 
     <TextView
         android:id="@+id/chatMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="64dp"
         android:background="@drawable/bg_bubble_user"
-        android:padding="12dp"
+        android:padding="14dp"
         android:text="User message"
-        android:textColor="#333333"
-        android:textSize="14sp" />
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="15sp"
+        android:lineSpacingMultiplier="1.2" />
 
 </LinearLayout>

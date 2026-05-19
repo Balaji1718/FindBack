@@ -174,6 +174,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         Canvas canvas = page.getCanvas();
         TextPaint paint = new TextPaint();
         paint.setTextSize(12);
+        // Use color relevant to theme if possible, but PDF is usually white background
         paint.setColor(android.graphics.Color.BLACK);
         StaticLayout staticLayout = StaticLayout.Builder.obtain(content, 0, content.length(), paint, 515)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0, 1.2f).setIncludePad(false).build();
@@ -183,7 +184,11 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         try (OutputStream os = getContentResolver().openOutputStream(uri)) {
             document.writeTo(os);
             Toast.makeText(this, "PDF saved successfully", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) { document.close(); }
+        } catch (IOException e) { 
+            Log.e(TAG, "Error saving PDF", e);
+        } finally {
+            document.close();
+        }
     }
 
     private void saveWord(Uri uri, String content) {
@@ -444,8 +449,6 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
 
         String finalInstId = institutionId != null ? institutionId : "default";
 
-        // 🔥 RELEASE FIX: If Firestore takes more than 3 seconds, proceed with partial context 
-        // to prevent App Check from hanging the AI assistant.
         final boolean[] contextLoaded = {false};
         new android.os.Handler().postDelayed(() -> {
             if (!contextLoaded[0]) {
@@ -466,6 +469,21 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
     private void handleAiSuccess(String response, String userPrompt) {
         chatAdapter.removeLoadingMessage();
         ChatMessage aiMsg = new ChatMessage(response, ChatMessage.TYPE_AI);
+        
+        // Issue 5: Detect Report Generation for Admins
+        if ("admin".equals(userRole)) {
+            boolean isReport = response.contains("Summary:") || 
+                               response.contains("Overview") || 
+                               response.contains("Report") || 
+                               response.contains("Total Items") ||
+                               userPrompt.toLowerCase().contains("report");
+            
+            if (isReport) {
+                aiMsg.setOfferPdf(true);
+                aiMsg.setOfferWord(true);
+            }
+        }
+
         chatAdapter.addMessage(aiMsg);
         saveMessageToCurrentSession(aiMsg);
         chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);

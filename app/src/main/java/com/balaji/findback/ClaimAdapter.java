@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.util.Base64;
+import android.util.TypedValue;
 import android.view.*;
 import android.widget.*;
 
@@ -34,74 +35,68 @@ public class ClaimAdapter extends RecyclerView.Adapter<ClaimAdapter.ViewHolder>{
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent,int viewType){
-
         View view= LayoutInflater.from(context).inflate(R.layout.claim_row,parent,false);
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder,int position){
-
         Claim claim=claimList.get(position);
 
         holder.textItemTitle.setText(claim.getItemTitle());
         holder.textProof.setText(claim.getProofMessage());
-        holder.textStatus.setText("Status: "+claim.getStatus());
+        
+        String status = claim.getStatus() != null ? claim.getStatus().toUpperCase() : "PENDING";
+        holder.textStatus.setText("Status: " + status);
 
-        // Fetch Item details to get Contact Info
+        // Issue 4: Theme aware colors for status
+        TypedValue typedValue = new TypedValue();
+        if ("APPROVED".equalsIgnoreCase(status)) {
+            holder.textStatus.setTextColor(Color.parseColor("#43A047")); // Green
+        } else if ("REJECTED".equalsIgnoreCase(status)) {
+            holder.textStatus.setTextColor(Color.parseColor("#E53935")); // Red
+        } else {
+            context.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true);
+            holder.textStatus.setTextColor(typedValue.data);
+        }
+
+        // Issue 3: Fetch Item details to get Contact Info (Robust visibility)
         db.collection("items").document(claim.getItemId())
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         Item item = documentSnapshot.toObject(Item.class);
-                        if (item != null && item.getContactInfo() != null) {
+                        if (item != null) {
+                            String contact = item.getContactInfo();
+                            if (contact == null || contact.isEmpty()) contact = "Not provided";
+                            
                             if (isOwner) {
-                                // Poster Screen
-                                holder.tvContact.setText("Contact : " + item.getContactInfo());
+                                // Owner of the item sees requester's proof and can see item contact too
+                                holder.tvContact.setVisibility(View.VISIBLE);
+                                holder.tvContact.setText("Your Contact: " + contact);
                             } else {
-                                // Claimer Screen
+                                // Requester Screen
                                 if ("approved".equalsIgnoreCase(claim.getStatus())) {
-                                    holder.tvContact.setText("Contact : " + item.getContactInfo());
+                                    holder.tvContact.setVisibility(View.VISIBLE);
+                                    holder.tvContact.setText("Owner Contact: " + contact);
+                                    holder.tvContact.setTextColor(Color.parseColor("#43A047"));
                                 } else {
-                                    holder.tvContact.setText("Contact : Waiting for approval");
+                                    holder.tvContact.setVisibility(View.VISIBLE);
+                                    holder.tvContact.setText("Contact will be visible after approval");
+                                    context.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOutline, typedValue, true);
+                                    holder.tvContact.setTextColor(typedValue.data);
                                 }
                             }
                         }
                     }
                 });
 
-        // Decode and set Proof Image 1
-        if (claim.getProofImage1() != null && !claim.getProofImage1().isEmpty()) {
-            holder.imgProof1.setVisibility(View.VISIBLE);
-            try {
-                byte[] bytes = Base64.decode(claim.getProofImage1(), Base64.DEFAULT);
-                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                holder.imgProof1.setImageBitmap(bmp);
-            } catch (Exception e) {
-                holder.imgProof1.setVisibility(View.GONE);
-            }
-        } else {
-            holder.imgProof1.setVisibility(View.GONE);
-        }
+        // Image loading logic remains same but ensuring no crashes
+        loadProofImages(claim, holder);
 
-        // Decode and set Proof Image 2
-        if (claim.getProofImage2() != null && !claim.getProofImage2().isEmpty()) {
-            holder.imgProof2.setVisibility(View.VISIBLE);
-            try {
-                byte[] bytes = Base64.decode(claim.getProofImage2(), Base64.DEFAULT);
-                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                holder.imgProof2.setImageBitmap(bmp);
-            } catch (Exception e) {
-                holder.imgProof2.setVisibility(View.GONE);
-            }
-        } else {
-            holder.imgProof2.setVisibility(View.GONE);
-        }
-
-        // Trigger Image Viewer on click
         View.OnClickListener openViewer = v -> {
             Intent i = new Intent(context, ProofViewerActivity.class);
-            i.putExtra("claimId", claim.getId()); // Pass only claimId to avoid Binder transaction buffer overflow
+            i.putExtra("claimId", claim.getId());
             context.startActivity(i);
         };
 
@@ -109,110 +104,81 @@ public class ClaimAdapter extends RecyclerView.Adapter<ClaimAdapter.ViewHolder>{
         holder.imgProof2.setOnClickListener(openViewer);
         holder.textProof.setOnClickListener(openViewer);
 
+        setupButtons(claim, holder, position);
+    }
+
+    private void loadProofImages(Claim claim, ViewHolder holder) {
+        if (claim.getProofImage1() != null && !claim.getProofImage1().isEmpty()) {
+            holder.imgProof1.setVisibility(View.VISIBLE);
+            try {
+                byte[] bytes = Base64.decode(claim.getProofImage1(), Base64.DEFAULT);
+                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                holder.imgProof1.setImageBitmap(bmp);
+            } catch (Exception e) { holder.imgProof1.setVisibility(View.GONE); }
+        } else { holder.imgProof1.setVisibility(View.GONE); }
+
+        if (claim.getProofImage2() != null && !claim.getProofImage2().isEmpty()) {
+            holder.imgProof2.setVisibility(View.VISIBLE);
+            try {
+                byte[] bytes = Base64.decode(claim.getProofImage2(), Base64.DEFAULT);
+                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                holder.imgProof2.setImageBitmap(bmp);
+            } catch (Exception e) { holder.imgProof2.setVisibility(View.GONE); }
+        } else { holder.imgProof2.setVisibility(View.GONE); }
+    }
+
+    private void setupButtons(Claim claim, ViewHolder holder, int position) {
         if(!isOwner){
             holder.btnApprove.setVisibility(View.GONE);
             holder.btnReject.setVisibility(View.GONE);
             holder.btnReturn.setVisibility(View.GONE);
             holder.btnDelete.setVisibility(View.VISIBLE);
         } else {
-            // Owner/Admin view - Claim Requests screen
             holder.btnDelete.setVisibility(View.GONE);
-            
             String status = claim.getStatus();
             if ("approved".equalsIgnoreCase(status)) {
                 holder.btnApprove.setVisibility(View.VISIBLE);
                 holder.btnApprove.setText("APPROVED");
                 holder.btnApprove.setEnabled(false);
-                holder.btnApprove.setTextColor(Color.GRAY);
-                
                 holder.btnReject.setVisibility(View.GONE);
-                
                 holder.btnReturn.setVisibility(View.VISIBLE);
                 holder.btnReturn.setEnabled(true);
                 holder.btnReturn.setAlpha(1.0f);
-            } else if ("returned".equalsIgnoreCase(status) || "rejected".equalsIgnoreCase(status)) {
-                // Should be removed by listener, but hide buttons just in case of delay
-                holder.btnApprove.setVisibility(View.GONE);
-                holder.btnReject.setVisibility(View.GONE);
-                holder.btnReturn.setVisibility(View.GONE);
             } else {
-                // Pending status
                 holder.btnApprove.setVisibility(View.VISIBLE);
                 holder.btnApprove.setText("APPROVE");
                 holder.btnApprove.setEnabled(true);
-                holder.btnApprove.setTextColor(context.getResources().getColor(R.color.purple_500));
-                
                 holder.btnReject.setVisibility(View.VISIBLE);
-                
                 holder.btnReturn.setVisibility(View.VISIBLE);
                 holder.btnReturn.setEnabled(false);
                 holder.btnReturn.setAlpha(0.5f);
             }
         }
 
-        holder.btnDelete.setOnClickListener(v->{
-            new AlertDialog.Builder(context)
-                    .setTitle("Delete Claim")
-                    .setMessage("Are you sure?")
-                    .setPositiveButton("Delete",(d,w)->{
-                        db.collection("claims")
-                                .document(claim.getId())
-                                .delete()
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(context, "Claim deleted", Toast.LENGTH_SHORT).show();
-                                })
-                                .addOnFailureListener(e -> {
-                                    Toast.makeText(context, "Delete failed: "+e.getMessage(), Toast.LENGTH_LONG).show();
-                                });
-                    })
-                    .setNegativeButton("Cancel",null)
-                    .show();
-        });
+        holder.btnDelete.setOnClickListener(v-> deleteClaim(claim, position));
+        holder.btnApprove.setOnClickListener(v-> updateStatus(claim, "approved", position));
+        holder.btnReject.setOnClickListener(v-> updateStatus(claim, "rejected", position));
+        holder.btnReturn.setOnClickListener(v-> updateStatus(claim, "returned", position));
+    }
 
-        holder.btnApprove.setOnClickListener(v->{
-            int currentPos = holder.getAdapterPosition();
-            if (currentPos == RecyclerView.NO_POSITION) return;
+    private void deleteClaim(Claim claim, int position) {
+        new AlertDialog.Builder(context).setTitle("Delete Claim").setMessage("Are you sure?")
+                .setPositiveButton("Delete",(d,w)->{
+                    db.collection("claims").document(claim.getId()).delete()
+                            .addOnSuccessListener(aVoid -> Toast.makeText(context, "Claim deleted", Toast.LENGTH_SHORT).show());
+                }).setNegativeButton("Cancel",null).show();
+    }
 
-            db.collection("claims").document(claim.getId()).update("status","approved")
-                    .addOnSuccessListener(aVoid -> {
-                        claim.setStatus("approved");
-                        notifyItemChanged(currentPos);
-                        Toast.makeText(context, "Claim Approved", Toast.LENGTH_SHORT).show();
+    private void updateStatus(Claim claim, String status, int position) {
+        db.collection("claims").document(claim.getId()).update("status", status)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(context, "Status Updated: " + status, Toast.LENGTH_SHORT).show();
+                    if ("approved".equals(status)) {
                         db.collection("items").document(claim.getItemId()).update("status", "CLAIMED");
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(context, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-        });
-
-        holder.btnReject.setOnClickListener(v->{
-            int currentPos = holder.getAdapterPosition();
-            if (currentPos == RecyclerView.NO_POSITION) return;
-
-            db.collection("claims").document(claim.getId()).update("status","rejected")
-                    .addOnSuccessListener(aVoid -> {
-                        // Immediately remove from list locally for smooth experience
-                        claimList.remove(currentPos);
-                        notifyItemRemoved(currentPos);
-                        
-                        Toast.makeText(context, "Claim Rejected", Toast.LENGTH_SHORT).show();
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(context, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-        });
-
-        holder.btnReturn.setOnClickListener(v->{
-            int currentPos = holder.getAdapterPosition();
-            if (currentPos == RecyclerView.NO_POSITION) return;
-
-            db.collection("claims").document(claim.getId()).update("status","returned")
-                    .addOnSuccessListener(aVoid -> {
-                        // Immediately remove from list locally so it disappears as requested
-                        claimList.remove(currentPos);
-                        notifyItemRemoved(currentPos);
-
-                        Toast.makeText(context, "Marked as Returned", Toast.LENGTH_SHORT).show();
+                    } else if ("returned".equals(status)) {
                         db.collection("items").document(claim.getItemId()).update("status", "RETURNED");
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(context, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-        });
+                    }
+                });
     }
 
     @Override
@@ -221,21 +187,18 @@ public class ClaimAdapter extends RecyclerView.Adapter<ClaimAdapter.ViewHolder>{
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder{
-
         TextView textItemTitle,textProof,textStatus, tvContact;
         ImageView imgProof1, imgProof2;
         Button btnApprove,btnReject,btnReturn,btnDelete;
 
         public ViewHolder(@NonNull View itemView){
             super(itemView);
-
             textItemTitle=itemView.findViewById(R.id.textItemTitle);
             textProof=itemView.findViewById(R.id.textProof);
             textStatus=itemView.findViewById(R.id.textStatus);
             tvContact = itemView.findViewById(R.id.tvContact);
             imgProof1 = itemView.findViewById(R.id.imgProof1);
             imgProof2 = itemView.findViewById(R.id.imgProof2);
-
             btnApprove=itemView.findViewById(R.id.btnApprove);
             btnReject=itemView.findViewById(R.id.btnReject);
             btnReturn=itemView.findViewById(R.id.btnReturn);

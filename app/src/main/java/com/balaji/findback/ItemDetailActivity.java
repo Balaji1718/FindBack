@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -29,9 +30,10 @@ import java.util.Map;
 public class ItemDetailActivity extends BaseActivity {
 
     ImageView detailImage;
-    TextView detailTitle, detailDescription;
+    TextView detailTitle, detailDescription, tvContactInfo;
 
     TextView statusPosted, statusClaimed, statusApproved, statusReturned;
+    TextView arrow1, arrow2, arrow3;
 
     Button btnClaimItem;
     Button btnAdminOptions;
@@ -52,11 +54,16 @@ public class ItemDetailActivity extends BaseActivity {
         detailImage = findViewById(R.id.detailImage);
         detailTitle = findViewById(R.id.detailTitle);
         detailDescription = findViewById(R.id.detailDescription);
+        tvContactInfo = findViewById(R.id.tvContactInfo);
 
         statusPosted = findViewById(R.id.statusPosted);
         statusClaimed = findViewById(R.id.statusClaimed);
         statusApproved = findViewById(R.id.statusApproved);
         statusReturned = findViewById(R.id.statusReturned);
+        
+        arrow1 = findViewById(R.id.arrow1);
+        arrow2 = findViewById(R.id.arrow2);
+        arrow3 = findViewById(R.id.arrow3);
 
         btnClaimItem = findViewById(R.id.btnClaimItem);
         timelineContainer = findViewById(R.id.timelineContainer);
@@ -66,28 +73,10 @@ public class ItemDetailActivity extends BaseActivity {
         btnAdminOptions.setVisibility(View.GONE);
         ((LinearLayout)btnClaimItem.getParent()).addView(btnAdminOptions);
 
-        itemTitle = getIntent().getStringExtra("title");
-        String description = getIntent().getStringExtra("description");
-        String imageBase64 = getIntent().getStringExtra("imageBase64");
-
         itemId = getIntent().getStringExtra("itemId");
         ownerId = getIntent().getStringExtra("ownerId");
         itemStatus = getIntent().getStringExtra("status");
         institutionId = getIntent().getStringExtra("institutionId");
-
-        detailTitle.setText(itemTitle);
-        detailDescription.setText(description);
-
-        // LOAD IMAGE WITH SECURITY BLUR
-        if (imageBase64 != null) {
-            try {
-                byte[] decodedBytes = Base64.decode(imageBase64, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                detailImage.setImageBitmap(bitmap);
-            } catch (Exception e) {
-                Log.e("ItemDetail", "Error decoding image", e);
-            }
-        }
 
         startItemUpdateListener();
         checkUserRoleAndPermissions();
@@ -104,33 +93,45 @@ public class ItemDetailActivity extends BaseActivity {
                     }
 
                     if (snapshot != null && snapshot.exists()) {
-                        String currentStatus = snapshot.getString("status");
-                        String currentTitle = snapshot.getString("title");
-                        String currentDesc = snapshot.getString("description");
+                        Item item = snapshot.toObject(Item.class);
+                        if (item == null) return;
 
-                        itemStatus = currentStatus;
-                        detailTitle.setText(currentTitle);
-                        detailDescription.setText(currentDesc);
+                        itemStatus = item.getStatus();
+                        detailTitle.setText(item.getTitle());
+                        detailDescription.setText(item.getDescription());
 
-                        updateStatusProgress(currentStatus);
-                        buildTimeline(currentStatus);
+                        String currentUserId = FirebaseAuth.getInstance().getUid();
+                        boolean isOwner = ownerId != null && ownerId.equals(currentUserId);
                         
-                        // Handle security blur based on updated status
-                        handleImageBlur(currentStatus);
+                        // Status flow: OPEN -> CLAIMED (Approved) -> RETURNED
+                        if (isOwner || "CLAIMED".equalsIgnoreCase(itemStatus) || "RETURNED".equalsIgnoreCase(itemStatus)) {
+                            tvContactInfo.setVisibility(View.VISIBLE);
+                            tvContactInfo.setText("Contact Info: " + (item.getContactInfo() != null ? item.getContactInfo() : "Not provided"));
+                        } else {
+                            tvContactInfo.setVisibility(View.GONE);
+                        }
+
+                        updateStatusProgress(itemStatus);
+                        buildTimeline(itemStatus);
+                        handleImageBlur(itemStatus, item.getImageBase64());
                     }
                 });
     }
 
-    private void handleImageBlur(String status) {
+    private void handleImageBlur(String status, String imageBase64) {
+        if (imageBase64 != null) {
+            try {
+                byte[] decodedBytes = Base64.decode(imageBase64, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                detailImage.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                Log.e("ItemDetail", "Error decoding image", e);
+            }
+        }
+
         if (status != null && status.equalsIgnoreCase("OPEN")) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                detailImage.setRenderEffect(
-                        RenderEffect.createBlurEffect(
-                                25f,
-                                25f,
-                                Shader.TileMode.CLAMP
-                        )
-                );
+                detailImage.setRenderEffect(RenderEffect.createBlurEffect(25f, 25f, Shader.TileMode.CLAMP));
             }
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -140,9 +141,8 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void checkUserRoleAndPermissions() {
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
-
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String currentUserId = FirebaseAuth.getInstance().getUid();
+        if (currentUserId == null) return;
 
         FirebaseFirestore.getInstance().collection("users")
                 .document(currentUserId)
@@ -165,7 +165,7 @@ public class ItemDetailActivity extends BaseActivity {
                                 Intent intent = new Intent(this, ClaimItemActivity.class);
                                 intent.putExtra("itemId", itemId);
                                 intent.putExtra("ownerId", ownerId);
-                                intent.putExtra("itemTitle", itemTitle);
+                                intent.putExtra("itemTitle", detailTitle.getText().toString());
                                 intent.putExtra("institutionId", institutionId);
                                 startActivity(intent);
                             });
@@ -176,7 +176,6 @@ public class ItemDetailActivity extends BaseActivity {
 
     private void showAdminOptions() {
         String[] options = {"Edit Item", "Delete Item", "Mark as Returned", "Flag Item"};
-
         new AlertDialog.Builder(this)
                 .setTitle("Admin Moderation")
                 .setItems(options, (dialog, which) -> {
@@ -186,108 +185,91 @@ public class ItemDetailActivity extends BaseActivity {
                         case 2: markAsReturned(); break;
                         case 3: flagItem(); break;
                     }
-                })
-                .show();
+                }).show();
     }
 
     private void editItem() {
-        Toast.makeText(this, "Edit feature coming soon", Toast.LENGTH_SHORT).show();
+        FirebaseFirestore.getInstance().collection("items").document(itemId).get()
+                .addOnSuccessListener(doc -> {
+                    Item item = doc.toObject(Item.class);
+                    if (item == null) return;
+                    Intent intent = new Intent(this, PostItemActivity.class);
+                    intent.putExtra("isEdit", true);
+                    intent.putExtra("itemId", itemId);
+                    intent.putExtra("title", item.getTitle());
+                    intent.putExtra("description", item.getDescription());
+                    intent.putExtra("contactInfo", item.getContactInfo());
+                    intent.putExtra("type", item.getType());
+                    intent.putExtra("imageBase64", item.getImageBase64());
+                    startActivity(intent);
+                });
     }
 
     private void deleteItem() {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Item")
-                .setMessage("Are you sure you want to delete this item?")
+        new AlertDialog.Builder(this).setTitle("Delete Item").setMessage("Are you sure?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    FirebaseFirestore.getInstance()
-                            .collection("items")
-                            .document(itemId)
-                            .delete()
+                    FirebaseFirestore.getInstance().collection("items").document(itemId).delete()
                             .addOnSuccessListener(aVoid -> {
                                 Toast.makeText(this, "Item deleted", Toast.LENGTH_SHORT).show();
                                 finish();
                             });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                }).setNegativeButton("Cancel", null).show();
     }
 
     private void markAsReturned() {
-        FirebaseFirestore.getInstance()
-                .collection("items")
-                .document(itemId)
-                .update("status", "RETURNED")
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Marked as Returned", Toast.LENGTH_SHORT).show();
-                });
+        FirebaseFirestore.getInstance().collection("items").document(itemId).update("status", "RETURNED")
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Marked as Returned", Toast.LENGTH_SHORT).show());
     }
 
     private void flagItem() {
-        Map<String, Object> flagData = new HashMap<>();
-        flagData.put("flagged", true);
-        flagData.put("flaggedBy", FirebaseAuth.getInstance().getCurrentUser().getUid());
-
-        FirebaseFirestore.getInstance()
-                .collection("items")
-                .document(itemId)
-                .update(flagData)
-                .addOnSuccessListener(aVoid ->
-                        Toast.makeText(this, "Item Flagged", Toast.LENGTH_SHORT).show());
+        FirebaseFirestore.getInstance().collection("items").document(itemId).update("flagged", true)
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Item Flagged", Toast.LENGTH_SHORT).show());
     }
 
     private void updateStatusProgress(String status){
-        int green = ContextCompat.getColor(this, android.R.color.holo_green_dark);
-        int gray = ContextCompat.getColor(this, android.R.color.darker_gray);
+        TypedValue typedValue = new TypedValue();
+        // Fix: Use androidx.appcompat.R.attr.colorPrimary as it is defined in AppCompat library
+        // This is necessary because android.nonTransitiveRClass is enabled.
+        getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true);
+        int activeColor = typedValue.data;
+        
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorOutline, typedValue, true);
+        int inactiveColor = typedValue.data;
 
-        statusPosted.setTextColor(gray);
-        statusClaimed.setTextColor(gray);
-        statusApproved.setTextColor(gray);
-        statusReturned.setTextColor(gray);
+        statusPosted.setTextColor(inactiveColor);
+        statusClaimed.setTextColor(inactiveColor);
+        statusApproved.setTextColor(inactiveColor);
+        statusReturned.setTextColor(inactiveColor);
+        
+        arrow1.setTextColor(inactiveColor);
+        arrow2.setTextColor(inactiveColor);
+        arrow3.setTextColor(inactiveColor);
 
-        if(status == null) {
-            statusPosted.setTextColor(green);
-            return;
+        statusPosted.setTextColor(activeColor);
+        if(status == null) return;
+
+        // Sequence: OPEN -> CLAIMED (Approved) -> RETURNED
+        if(status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("RETURNED")){
+            statusClaimed.setTextColor(activeColor);
+            statusApproved.setTextColor(activeColor);
+            arrow1.setTextColor(activeColor);
+            arrow2.setTextColor(activeColor);
         }
-
-        // Standard sequence: OPEN (Posted) -> CLAIMED -> APPROVED -> RETURNED
-        statusPosted.setTextColor(green);
-
-        if(status.equalsIgnoreCase("CLAIMED")
-                || status.equalsIgnoreCase("APPROVED")
-                || status.equalsIgnoreCase("RETURNED")){
-            statusClaimed.setTextColor(green);
-        }
-
-        if(status.equalsIgnoreCase("APPROVED")
-                || status.equalsIgnoreCase("RETURNED")){
-            statusApproved.setTextColor(green);
-        }
-
         if(status.equalsIgnoreCase("RETURNED")){
-            statusReturned.setTextColor(green);
+            statusReturned.setTextColor(activeColor);
+            arrow3.setTextColor(activeColor);
         }
     }
 
     private void buildTimeline(String status){
         timelineContainer.removeAllViews();
         addTimeline("Item Posted");
-
         if(status == null) return;
-
-        if(status.equalsIgnoreCase("CLAIMED")
-                || status.equalsIgnoreCase("APPROVED")
-                || status.equalsIgnoreCase("RETURNED")){
+        if(status.equalsIgnoreCase("CLAIMED") || status.equalsIgnoreCase("RETURNED")) {
             addTimeline("Claim Requested");
-        }
-
-        if(status.equalsIgnoreCase("APPROVED")
-                || status.equalsIgnoreCase("RETURNED")){
             addTimeline("Claim Approved");
         }
-
-        if(status.equalsIgnoreCase("RETURNED")){
-            addTimeline("Item Returned");
-        }
+        if(status.equalsIgnoreCase("RETURNED")) addTimeline("Item Returned");
     }
 
     private void addTimeline(String text){
@@ -300,8 +282,6 @@ public class ItemDetailActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (itemListener != null) {
-            itemListener.remove();
-        }
+        if (itemListener != null) itemListener.remove();
     }
 }

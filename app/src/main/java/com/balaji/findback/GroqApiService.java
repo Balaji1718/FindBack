@@ -47,7 +47,6 @@ public class GroqApiService {
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setDoOutput(true);
                 
-                // RELEASE HARDENING: Consistent timeouts
                 conn.setConnectTimeout(30000);
                 conn.setReadTimeout(30000);
 
@@ -55,7 +54,10 @@ public class GroqApiService {
                 jsonBody.put("model", MODEL);
 
                 JSONArray messages = new JSONArray();
-                String systemPrompt = "You are a helpful Lost and Found AI. Use the provided institution data to answer accurately. Respond concisely.\nContext:\n" + context;
+                // Enhanced Prompt for Admin Reporting
+                String systemPrompt = "You are a professional Lost and Found assistant. Use the provided context data to answer accurately.\n" +
+                    "ADMIN REPORTING: If asked for a report or summary, provide a professional breakdown with statistics.\n" +
+                    "Context:\n" + context;
                 messages.put(new JSONObject().put("role", "system").put("content", systemPrompt));
 
                 for (ChatMessage chat : history) {

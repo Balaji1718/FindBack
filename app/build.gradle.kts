@@ -131,7 +131,7 @@ dependencies {
     implementation("io.noties.markwon:html:4.6.2")
     implementation("io.noties.markwon:image-glide:4.6.2")
     implementation("io.noties.markwon:linkify:4.6.2")
-    implementation("io.noties.markwon:simple-ext:4.6.2")
+        implementation("io.noties.markwon:simple-ext:4.6.2")
 
     // Testing
     testImplementation(libs.junit)

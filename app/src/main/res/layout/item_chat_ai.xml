@@ -17,7 +17,7 @@
         android:background="@drawable/bg_bubble_ai"
         android:padding="16dp"
         android:text="AI message response"
-        android:textColor="#1A1A1A"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="15sp"
         android:lineSpacingMultiplier="1.4"
         android:letterSpacing="0.01"
@@ -42,14 +42,14 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="1dp"
             app:strokeWidth="0.5dp"
-            app:strokeColor="#DDDDDD"
+            app:strokeColor="?attr/colorOutlineVariant"
             android:clickable="true"
             android:focusable="true">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#F8F9FA"
+                android:background="?attr/colorSurfaceVariant"
                 android:orientation="horizontal"
                 android:paddingVertical="8dp"
                 android:paddingHorizontal="14dp"
@@ -59,14 +59,14 @@
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@android:drawable/ic_menu_save"
-                    app:tint="#5F6368" />
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:text="Save PDF"
-                    android:textColor="#3C4043"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     android:fontFamily="sans-serif-medium" />
             </LinearLayout>
@@ -79,14 +79,14 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="1dp"
             app:strokeWidth="0.5dp"
-            app:strokeColor="#DDDDDD"
+            app:strokeColor="?attr/colorOutlineVariant"
             android:clickable="true"
             android:focusable="true">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#F8F9FA"
+                android:background="?attr/colorSurfaceVariant"
                 android:orientation="horizontal"
                 android:paddingVertical="8dp"
                 android:paddingHorizontal="14dp"
@@ -96,14 +96,14 @@
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@android:drawable/ic_menu_save"
-                    app:tint="#5F6368" />
+                    app:tint="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:text="Save Word"
-                    android:textColor="#3C4043"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     android:fontFamily="sans-serif-medium" />
             </LinearLayout>
