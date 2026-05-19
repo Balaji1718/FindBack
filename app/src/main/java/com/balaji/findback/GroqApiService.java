@@ -52,12 +52,18 @@ public class GroqApiService {
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", MODEL);
+                jsonBody.put("temperature", 0.3);
 
                 JSONArray messages = new JSONArray();
-                // Enhanced Prompt for Admin Reporting
-                String systemPrompt = "You are a professional Lost and Found assistant. Use the provided context data to answer accurately.\n" +
-                    "ADMIN REPORTING: If asked for a report or summary, provide a professional breakdown with statistics.\n" +
-                    "Context:\n" + context;
+                // INTENT AWARE PROMPT - Consistent with Nvidia Service
+                String systemPrompt = "You are 'FindBack AI', the smart assistant for a Lost and Found system.\n" +
+                    "CORE INSTRUCTIONS:\n" +
+                    "1. INTERPRET INTENT: Even if the user has bad grammar, is very brief, or makes typos, understand what they need.\n" +
+                    "2. DATA ACCURACY: Use the provided Context. The 'Total' counts are 100% accurate for the whole institution. The 'List' shows the most recent entries.\n" +
+                    "3. ROLE AWARENESS: Admins can see management data. Users can only see item help.\n" +
+                    "4. REPORTING: If an admin asks for a summary/report, use the [STATION DATA] and [ADMIN PANEL] to build it professionally.\n" +
+                    "\n--- CONTEXT ---\n" + context;
+
                 messages.put(new JSONObject().put("role", "system").put("content", systemPrompt));
 
                 for (ChatMessage chat : history) {

@@ -54,20 +54,26 @@ public class NvidiaApiService {
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", PRIMARY_MODEL);
-                jsonBody.put("temperature", 0.2);
-                jsonBody.put("top_p", 0.7);
-                jsonBody.put("max_tokens", 1024);
+                jsonBody.put("temperature", 0.4);
+                jsonBody.put("top_p", 0.85);
+                jsonBody.put("max_tokens", 1500);
 
                 JSONArray messages = new JSONArray();
                 JSONObject systemMessage = new JSONObject();
                 
-                // Enhanced Prompt for Admin Reporting
-                String systemPrompt = "You are a Lost and Found AI assistant for an institution. " +
-                    "Use the provided context data to answer accurately.\n" +
-                    "REPORT GENERATION: If the user is an Admin and asks for a report, summary, or overview, " +
-                    "generate a professional report with statistics (totals, lost vs found, claim status). " +
-                    "Format the report using headers like 'Report Title', 'Summary', and 'Detailed Breakdown'.\n" +
-                    "Context:\n" + context;
+                String systemPrompt = "You are 'FindBack AI', the smart coordinator for the FindBack Lost and Found system.\n\n" +
+                    "APP NAVIGATION GUIDE:\n" +
+                    "- 'Home': Main feed with filters and Global Search bar.\n" +
+                    "- 'Post' (Plus icon): Where users report lost or found items.\n" +
+                    "- 'Claims': Section to track your claims or manage requests you received.\n" +
+                    "- 'AI Chat': This interface (supports PDF/Word downloads for admins).\n\n" +
+                    "INTELLIGENCE PROTOCOL:\n" +
+                    "1. PROACTIVE MATCHING: If a user lost something, scan [RECENTLY POSTED ITEMS] and suggest potential matches immediately.\n" +
+                    "2. ADMIN DOWNLOAD TRIGGERS: To allow admins to download reports, you MUST include 'Summary:', 'Detailed Breakdown:', and 'Total Items' as headers.\n" +
+                    "3. GLOBAL SEARCH ADVICE: If an item isn't in the context (top 60), advise: 'Use the Search bar on the Home screen to check the full archive.'\n" +
+                    "4. INTENT OVER SYNTAX: Typos and brief queries like 'lost watch' should be treated as full requests for help.\n" +
+                    "5. TONE: Empathetic for users, data-driven and professional for admins.\n\n" +
+                    "--- INSTITUTION CONTEXT ---\n" + context;
                     
                 systemMessage.put("role", "system");
                 systemMessage.put("content", systemPrompt);
@@ -112,7 +118,7 @@ public class NvidiaApiService {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "API Exception", e);
-                mainHandler.post(() -> callback.onFailure("Network Error/Timeout"));
+                mainHandler.post(() -> callback.onFailure("Network Error"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -120,6 +126,6 @@ public class NvidiaApiService {
     }
 
     public void sendMessage(String userMessage, ChatCallback callback) {
-        sendMessageStructured("Limited Context.", new ArrayList<>(), userMessage, callback);
+        sendMessageStructured("Basic context.", new ArrayList<>(), userMessage, callback);
     }
 }

@@ -47,10 +47,21 @@ public class CohereApiService {
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("message", userPrompt);
-                jsonBody.put("preamble", "Context: " + context);
+                
+                // INTENT AWARE PREAMBLE - Consistent across all services
+                String preamble = "You are 'FindBack AI', the smart assistant for a Lost and Found system.\n" +
+                    "CORE INSTRUCTIONS:\n" +
+                    "1. INTERPRET INTENT: Even if the user has bad grammar, is very brief, or makes typos, understand what they need.\n" +
+                    "2. DATA ACCURACY: Use the provided Context. The 'Total' counts are 100% accurate for the whole institution. The 'List' shows the most recent entries.\n" +
+                    "3. ROLE AWARENESS: Admins can see management data. Users can only see item help.\n" +
+                    "4. REPORTING: If an admin asks for a summary/report, use the [STATION DATA] and [ADMIN PANEL] to build it professionally.\n" +
+                    "\n--- CONTEXT ---\n" + context;
+                
+                jsonBody.put("preamble", preamble);
 
                 JSONArray chatHistory = new JSONArray();
                 for (ChatMessage chat : history) {
+                    if (chat.getType() == ChatMessage.TYPE_LOADING) continue;
                     chatHistory.put(new JSONObject()
                             .put("role", chat.getType() == ChatMessage.TYPE_USER ? "USER" : "CHATBOT")
                             .put("message", chat.getMessage()));

@@ -448,6 +448,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
         chatRecyclerView.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
 
         String finalInstId = institutionId != null ? institutionId : "default";
+        boolean isAdmin = "admin".equals(userRole);
 
         final boolean[] contextLoaded = {false};
         new android.os.Handler().postDelayed(() -> {
@@ -455,12 +456,12 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
                 contextLoaded[0] = true;
                 callNvidia("Offline/Cached Mode", requestSessionId, text);
             }
-        }, 3000);
+        }, 4000);
 
-        InstitutionContextProvider.load(finalInstId, context -> {
+        InstitutionContextProvider.load(finalInstId, isAdmin, context -> {
             if (!contextLoaded[0]) {
                 contextLoaded[0] = true;
-                String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
+                String roleContext = "User Role: " + userRole + "\n" + context;
                 callNvidia(roleContext, requestSessionId, text);
             }
         });
