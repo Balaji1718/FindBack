@@ -54,28 +54,20 @@ public class NvidiaApiService {
 
                 JSONObject jsonBody = new JSONObject();
                 jsonBody.put("model", PRIMARY_MODEL);
-                jsonBody.put("temperature", 0.2); 
+                jsonBody.put("temperature", 0.2);
                 jsonBody.put("top_p", 0.7);
-                jsonBody.put("max_tokens", 2500);
+                jsonBody.put("max_tokens", 1024);
 
                 JSONArray messages = new JSONArray();
                 JSONObject systemMessage = new JSONObject();
                 
-                String systemPrompt = "You are 'FindBack AI', a specialized institutional coordinator. Your goal is to provide accurate, structured, and professional assistance.\n\n" +
-                    "DOCUMENT GENERATION PROTOCOL (FOR ADMINS):\n" +
-                    "When an Admin asks for a report, summary, or document, use professional typography and structure:\n" +
-                    "1. MAIN TITLE: Use '# [Report Name]' for the main title.\n" +
-                    "2. SECTION HEADERS: Use '### [Section Name]' for sub-headers.\n" +
-                    "3. DATA TABLES: For item lists or statistical breakdowns, use Markdown Tables:\n" +
-                    "   | Header 1 | Header 2 | Header 3 |\n" +
-                    "   |----------|----------|----------|\n" +
-                    "   | Cell 1   | Cell 2   | Cell 3   |\n" +
-                    "4. KEY STATISTICS: Use '[Label]: [Value]' for specific counts.\n" +
-                    "5. QUERY ADHERENCE: Strictly answer the specific query. If asked for 'Lost items', do not include 'Found items' in the table.\n\n" +
-                    "INTENT RECOGNITION:\n" +
-                    "- Understand the core request even with typos (e.g., 'how may item' -> 'how many items').\n" +
-                    "- Be empathetic to users searching for items and efficient for admins managing data.\n\n" +
-                    "--- INSTITUTION CONTEXT ---\n" + context;
+                // Enhanced Prompt for Admin Reporting
+                String systemPrompt = "You are a Lost and Found AI assistant for an institution. " +
+                    "Use the provided context data to answer accurately.\n" +
+                    "REPORT GENERATION: If the user is an Admin and asks for a report, summary, or overview, " +
+                    "generate a professional report with statistics (totals, lost vs found, claim status). " +
+                    "Format the report using headers like 'Report Title', 'Summary', and 'Detailed Breakdown'.\n" +
+                    "Context:\n" + context;
                     
                 systemMessage.put("role", "system");
                 systemMessage.put("content", systemPrompt);
@@ -120,7 +112,7 @@ public class NvidiaApiService {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "API Exception", e);
-                mainHandler.post(() -> callback.onFailure("Network Error"));
+                mainHandler.post(() -> callback.onFailure("Network Error/Timeout"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -128,6 +120,6 @@ public class NvidiaApiService {
     }
 
     public void sendMessage(String userMessage, ChatCallback callback) {
-        sendMessageStructured("Basic context.", new ArrayList<>(), userMessage, callback);
+        sendMessageStructured("Limited Context.", new ArrayList<>(), userMessage, callback);
     }
 }
