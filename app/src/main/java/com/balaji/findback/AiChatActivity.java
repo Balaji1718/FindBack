@@ -457,7 +457,7 @@ public class AiChatActivity extends BaseActivity implements HistoryAdapter.OnHis
             }
         }, 3000);
 
-        InstitutionContextProvider.load(finalInstId, context -> {
+        InstitutionContextProvider.load(finalInstId, "admin".equals(userRole), context -> {
             if (!contextLoaded[0]) {
                 contextLoaded[0] = true;
                 String roleContext = "User Role: " + userRole + "\n" + ("admin".equals(userRole) ? context : "Limited info.");
